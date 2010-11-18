@@ -3,8 +3,8 @@
  * Minify Class by Jonas Stendahl
  * http://www.jyggen.com/
  *
- * JSMin Class by Ryan Grove
- * http://code.google.com/p/jsmin-php/
+ * JSMin Class by Nicolas Martin
+ * http://joliclic.free.fr/php/javascript-packer/en/
  *
  * CSSMin Class by Corey Hart
  * http://www.codenothing.com/
@@ -209,10 +209,11 @@ class minify {
 
         $code = '';
         foreach($this->files as $file)
-            $code .= file_get_contents($file) . ' ';
+            $code .= file_get_contents($file) . "\n";
         
         if($this->type == 'js') {
-            return trim(JSMin::minify($code));
+            $js = new JSMin($code);
+			return trim($js->pack());
         } else {
             $css = new CSSMin();
             return trim($css->compress($code));
