@@ -1,6 +1,6 @@
 <?php
 require '../Minify.class.php';
-$js = new Minify('js', 'js/', 'scripts.min.js', array(), array('jquery-1.4.2.js', 'websocket.class.js'), true); 
+$js = new Minify('js', 'js/', 'scripts.min.js', array(), array(), true); 
 ?>
 <!DOCTYPE html> 
 <html lang="en"> 

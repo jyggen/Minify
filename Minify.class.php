@@ -2,8 +2,7 @@
 /*
  * Minify Class by Jonas Stendahl
  * http://www.jyggen.com/
- * updated: r9 (2010-08-02)
-
+ *
  * JSMin Class by Ryan Grove
  * http://code.google.com/p/jsmin-php/
  *
@@ -25,6 +24,7 @@ class minify {
     private $type;
     private $ext;
     private $hash_file;
+    private $algorithm;
     private $hashes;
     private $priority;
     public  $link;
@@ -39,7 +39,6 @@ class minify {
         
         /* private variables */
         $this->debug     = $debug;
-		$this->version   = 'r9 (2010-08-02)';
         $this->file_dir  = $dir;
         $this->min_file  = $file;
         $this->min_path  = $dir.$file;
@@ -47,8 +46,9 @@ class minify {
         $this->filter    = $filter;
         $this->priority  = $priority;
         $this->hash_file = 'checksums.sfv';
+        $this->algorithm = 'md4';
         
-        if($this->debug) echo '<br /><pre><strong>Minify ' . $this->version . '</strong><br />debug information: .' . $this->type . ' files</pre>';
+        if($this->debug) echo '<pre><strong>Minify - Compress your files on the fly!</strong>' . "\n" . 'debug information for .' . $this->type . ' files' . "\n\n";
         
         /* push the minified file into the filter array, we don't want to compress it with the other files */
         array_push($this->filter, $this->min_file);
@@ -60,39 +60,25 @@ class minify {
         /* set the extension and hash file variables depending on the type */
         if($type == 'css')    $this->ext = '*.css';
         elseif($type == 'js') $this->ext = '*.js';
-
+		
+		 /* get all the files from the dir */
+        if(!$this->getFiles())
+        	trigger_error($this->file_dir . ' does not exist', E_USER_ERROR);
+        	
+        if(empty($this->files)) {
+        	
+        	trigger_error('no files found', E_USER_NOTICE);
+        	return false;
+		
+		}
+			
         /* check if the minified file and the file with the hashes exists */
-        if(file_exists($this->min_path) && file_exists($this->file_dir . $this->hash_file)) {
+        if(file_exists($this->min_path) && file_exists($this->file_dir . $this->hash_file) && !$this->compare()) {
 
-            /* get all the files from the dir */
-            $this->getFiles();
-
-            /* check if there is any new or changed files */
-            if($this->compare()) {
-
-                /* compress the files */
-                $min = $this->compress();
-
-                /* generate a new hash file */
-                $this->generate_hash_file();
-
-                /* put the compressed code in the minified file */
-                file_put_contents($this->min_path, $min);
-
-                /* debug output */
-                if($this->debug) $this->debug('save', $this->min_file, hash_file('crc32b', $this->min_path), 'OK!');
-                
-            } else {
-
-                /* debug output */
-                if($this->debug) $this->debug('keep', $this->min_file, hash_file('crc32b', $this->min_path), 'OK!');
-
-            }
+            /* debug output */
+            if($this->debug) $this->debug('keep', $this->min_file, hash_file($this->algorithm, $this->min_path), 'OK!');
 
         } else {
-
-            /* get all the files from the dir */
-            $this->getFiles();
 
             /* compress the files */
             $min = $this->compress();
@@ -104,7 +90,7 @@ class minify {
             file_put_contents($this->min_path, $min);
 
             /* debug output */
-            if($this->debug) $this->debug('save', $this->min_file, hash_file('crc32b', $this->min_path), 'OK!');
+            if($this->debug) $this->debug('save', $this->min_file, hash_file($this->algorithm, $this->min_path), 'OK!');
 
         }
      
@@ -112,7 +98,7 @@ class minify {
        
             $this->stop = microtime();
             $res = ($this->stop - $this->start);
-            echo '<pre>Execution Time: ' . round($res, 6) . '</pre>';
+            echo "\n" . 'Execution Time: ' . round($res, 6) . '</pre>';
 
         }
         
@@ -121,26 +107,32 @@ class minify {
     }
     
     /* print debug information */
-    private function debug($action, $file, $crc32, $status, $pad = 40) {
+    private function debug($action, $file, $hash, $status, $pad = 40) {
         
-        echo '<pre>' . str_pad($action, $pad, ' ') . str_pad($file, $pad, ' ') . str_pad($crc32, $pad, ' ') . $status . '</pre>';
+        echo str_pad($action, $pad, ' ') . str_pad($file, $pad, ' ') . str_pad($hash, $pad, ' ') . $status . "\n";
     
     }
 
     /* get all files in a folder */
     private function getFiles() {
-
+		
+		if(!file_exists($this->file_dir))
+			return false;
+		
         $dir[$this->file_dir] = scandir($this->file_dir);
-
+		$sdir = array();
+		
         foreach($dir[$this->file_dir] as $i => $entry) {
             if($entry != '.' && $entry != '..' && fnmatch($this->ext, $entry) && (!is_array($this->filter) || !in_array($entry, $this->filter))) {
                 $sdir[] = $this->file_dir . $entry;
-                $this->hashes[$entry] = hash_file('crc32b', $this->file_dir . $entry);
+                $this->hashes[$entry] = hash_file($this->algorithm, $this->file_dir . $entry);
             }
         }
         
         $sdir = $this->order($sdir);
         $this->files = $sdir;
+        
+        return true;
 
     }
     
@@ -150,8 +142,12 @@ class minify {
         $sdir = array();
         
         foreach($this->priority as $file) {
-        
-        	$sdir[] = $this->file_dir . $file;
+        	
+        	if(file_exists($this->file_dir . $file))
+        		$sdir[] = $this->file_dir . $file;
+        		
+        	else
+        		trigger_error($file . ' does not exist', E_USER_NOTICE);
         
         }
            
