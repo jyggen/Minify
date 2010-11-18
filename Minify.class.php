@@ -20,7 +20,7 @@ class minify {
     private $file_dir;
     private $min_file;
     private $min_path;
-    public  $files;
+    private $files;
     private $type;
     private $ext;
     private $hash_file;
@@ -47,7 +47,8 @@ class minify {
         $this->priority     = $priority;
         $this->hash_file    = 'minify.sfv';
         $this->suffix       = 'minify';
-        $this->algorithm    = 'md4';
+        $this->algorithm    = 'crc32b';
+        $this->link			= '';
         
         $this->combine      = true;
         $this->combine_name = 'all';
@@ -75,11 +76,41 @@ class minify {
 		}
 			
         /* check if the minified file and the file with the hashes exists */
-        if(file_exists($this->min_path) && file_exists($this->file_dir . $this->hash_file) && !$this->compare()) {
+        if(($this->combine == false || file_exists($this->combine_path)) && file_exists($this->file_dir . $this->hash_file) && !$this->compare()) {
+			
+			if($this->combine) {
+				
+				$hash = hash_file($this->algorithm, $this->combine_path);
+				if($this->debug) $this->debug('keep', str_replace($this->file_dir, '', $this->combine_path), $hash, 'OK!');
+				
+				switch($this->type) {
+					case 'js':
+						$this->link = '<script text="text/javascript" src="' . $this->combine_path . '?' . $hash . '"></script>' . "\n";
+						break;
+					case 'css':
+						$this->link = '<link rel="stylesheet" href="' . $this->combine_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+						break;
+				}
+				
+			} else {
+			
+				foreach($this->hashes as $file => $hash) {
 
-            /* debug output */
-            if($this->debug) $this->debug('keep', $this->min_file, hash_file($this->algorithm, $this->min_path), 'OK!');
-
+            		$this->debug('save', str_replace($this->file_dir, '', $file), $hash, 'OK!');
+            		
+            		switch($this->type) {
+						case 'js':
+							$this->link .= '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
+							break;
+						case 'css':
+							$this->link .= '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+							break;
+					}
+            			
+            	}
+			
+			}
+			
         } else {
 
             /* compress the files */
@@ -89,16 +120,34 @@ class minify {
             $this->generate_hash_file();
 			
 			if($this->combine) {
-			
-				if($this->debug) $this->debug('save', $this->combine_path, hash_file($this->algorithm, $this->combine_path), 'OK!');
-				$this->link = '<script text="text/javascript" src="' . $this->combine_path . '"></script>' . "\n";
+				
+				$hash = hash_file($this->algorithm, $this->combine_path);
+				if($this->debug) $this->debug('save', str_replace($this->file_dir, '', $this->combine_path), $hash, 'OK!');
+				
+				switch($this->type) {
+					case 'js':
+						$this->link = '<script text="text/javascript" src="' . $this->combine_path . '?' . $hash . '"></script>' . "\n";
+						break;
+					case 'css':
+						$this->link = '<link rel="stylesheet" href="' . $this->combine_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+						break;
+				}
 				
 			} else {
 			
 				foreach($this->files as $file) {
-				
-            		$this->debug('save', str_replace($this->file_dir, '', $file), hash_file($this->algorithm, $file), 'OK!');
-            		$this->link .= '<script text="text/javascript" src="' . $this->combine_path . '"></script>' . "\n";
+					
+					$hash = hash_file($this->algorithm, $file);
+            		$this->debug('save', str_replace($this->file_dir, '', $file), $hash, 'OK!');
+            		
+            		switch($this->type) {
+						case 'js':
+							$this->link .= '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
+							break;
+						case 'css':
+							$this->link .= '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+							break;
+					}
             			
             	}
 			

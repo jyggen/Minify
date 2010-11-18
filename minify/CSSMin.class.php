@@ -957,7 +957,9 @@ Class CSSMin
 	 * @params none
 	 */ 
 	protected function combineMultiplyDefinedSelectors(){
-		$max = array_pop( array_keys( $this->selectors ) ) + 1;
+		$keys = array_keys($this->selectors);
+		$max  = array_pop($keys) + 1;
+
 		for ( $i = 0; $i < $max; $i++ ) {
 			if ( ! isset( $this->selectors[ $i ] ) ) {
 				continue;
@@ -983,7 +985,9 @@ Class CSSMin
 	 * @params none
 	 */ 
 	protected function combineMultiplyDefinedDetails(){
-		$max = array_pop( array_keys( $this->selectors ) ) + 1;
+		$keys = array_keys($this->selectors);
+		$max  = array_pop($keys) + 1;
+
 		for ( $i = 0; $i < $max; $i++ ) {
 			if ( ! isset( $this->selectors[ $i ] ) ) {
 				continue;
