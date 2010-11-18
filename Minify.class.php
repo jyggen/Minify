@@ -28,30 +28,32 @@ class minify {
     private $hashes;
     private $priority;
     public  $link;
+    private $combine;
     
     /* debug vars */
     private $start;
     private $stop;
 
-    public function __construct($type, $dir, $file, $filter = array(), $priority = array(), $debug = false) {
+    public function __construct($type, $dir, $filter = array(), $priority = array(), $debug = false) {
         
         if($this->debug) $this->start = microtime();
         
         /* private variables */
-        $this->debug     = $debug;
-        $this->file_dir  = $dir;
-        $this->min_file  = $file;
-        $this->min_path  = $dir.$file;
-        $this->type      = $type;
-        $this->filter    = $filter;
-        $this->priority  = $priority;
-        $this->hash_file = 'checksums.sfv';
-        $this->algorithm = 'md4';
+        $this->debug        = $debug;
+        $this->file_dir     = $dir;
+        $this->type         = $type;
+        $this->filter       = $filter;
+        $this->regexp       = '/^.*\.minify\.(css|js)$/i';
+        $this->priority     = $priority;
+        $this->hash_file    = 'minify.sfv';
+        $this->suffix       = 'minify';
+        $this->algorithm    = 'md4';
+        
+        $this->combine      = true;
+        $this->combine_name = 'all';
+        $this->combine_path = $this->file_dir . $this->combine_name . '.' . $this->suffix . '.' . $this->type;
         
         if($this->debug) echo '<pre><strong>Minify - Compress your files on the fly!</strong>' . "\n" . 'debug information for .' . $this->type . ' files' . "\n\n";
-        
-        /* push the minified file into the filter array, we don't want to compress it with the other files */
-        array_push($this->filter, $this->min_file);
         
         /* check if the type is allowed */
         if($type != 'css' && $type != 'js')
@@ -81,16 +83,26 @@ class minify {
         } else {
 
             /* compress the files */
-            $min = $this->compress();
+            $this->compress();
 
             /* generate a new hash file */
             $this->generate_hash_file();
-
-            /* put the compressed code in the minified file */
-            file_put_contents($this->min_path, $min);
-
-            /* debug output */
-            if($this->debug) $this->debug('save', $this->min_file, hash_file($this->algorithm, $this->min_path), 'OK!');
+			
+			if($this->combine) {
+			
+				if($this->debug) $this->debug('save', $this->combine_path, hash_file($this->algorithm, $this->combine_path), 'OK!');
+				$this->link = '<script text="text/javascript" src="' . $this->combine_path . '"></script>' . "\n";
+				
+			} else {
+			
+				foreach($this->files as $file) {
+				
+            		$this->debug('save', str_replace($this->file_dir, '', $file), hash_file($this->algorithm, $file), 'OK!');
+            		$this->link .= '<script text="text/javascript" src="' . $this->combine_path . '"></script>' . "\n";
+            			
+            	}
+			
+			}
 
         }
      
@@ -101,8 +113,6 @@ class minify {
             echo "\n" . 'Execution Time: ' . round($res, 6) . '</pre>';
 
         }
-        
-        $this->link = $this->min_path . '?' . filemtime($this->min_path);
  
     }
     
@@ -119,14 +129,18 @@ class minify {
 		if(!file_exists($this->file_dir))
 			return false;
 		
-        $dir[$this->file_dir] = scandir($this->file_dir);
+        $dir  = scandir($this->file_dir);
 		$sdir = array();
 		
-        foreach($dir[$this->file_dir] as $i => $entry) {
-            if($entry != '.' && $entry != '..' && fnmatch($this->ext, $entry) && (!is_array($this->filter) || !in_array($entry, $this->filter))) {
+        foreach($dir as $i => $entry) {
+        
+            if($entry != '.' && $entry != '..' && fnmatch($this->ext, $entry) && (!is_array($this->filter) || !in_array($entry, $this->filter)) && !preg_match($this->regexp, $entry)) {
+            
                 $sdir[] = $this->file_dir . $entry;
                 $this->hashes[$entry] = hash_file($this->algorithm, $this->file_dir . $entry);
+                
             }
+            
         }
         
         $sdir = $this->order($sdir);
@@ -206,18 +220,52 @@ class minify {
 
     /* compress the code with it's own minify class */
     private function compress() {
-
-        $code = '';
-        foreach($this->files as $file)
-            $code .= file_get_contents($file) . "\n";
-        
-        if($this->type == 'js') {
-            $js = new JSMin($code);
-			return trim($js->pack());
-        } else {
-            $css = new CSSMin();
-            return trim($css->compress($code));
-        }
+		
+		if($this->combine == true) {
+		
+			$code = '';
+		
+		    foreach($this->files as $file)
+		        $code .= file_get_contents($file) . "\n";
+		        
+	        switch($this->type) {
+			   	case 'js':
+			   		$js   = new JSMin($code);
+			   		$code = trim($js->pack());
+			   		break;
+			   	case 'css':
+			   		$css  = new CSSMin();
+			   		$code = trim($css->compress($code));
+			   		break;
+	       	}
+	    
+	    	file_put_contents($this->combine_path, $code);   	
+		
+		} else {
+		
+			foreach($this->files as $file) {
+			
+		        $code = file_get_contents($file);
+		        
+		        switch($this->type) {
+				   	case 'js':
+				   		$js   = new JSMin($code);
+				   		$code = trim($js->pack());
+				   		break;
+				   	case 'css':
+				   		$css  = new CSSMin();
+				   		$code = trim($css->compress($code));
+				   		break;
+			   	}
+			   	
+			   	$ext  = strrchr($file, '.');  
+         		$path = substr($file, 0, -strlen($ext)) . $suffix . $ext;   
+			   	
+			   	file_put_contents($path, $code);
+		        
+			}
+		
+		}
 
     }
 
