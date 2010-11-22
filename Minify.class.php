@@ -16,15 +16,14 @@ require 'minify/CSSMin.class.php';
 class minify {
     
     /* minify vars */
-    protected $options       = array();
-    protected $posteriority  = array();
-    protected $priority      = array();
-    protected $ignore        = array();
-    protected $allowed_types = array('css', 'js');
-    protected $files		 = array();
-    protected $hashes		 = array();
-    protected $code			 = array();
-    
+    protected $options;
+    protected $posteriority;
+    protected $priority;
+    protected $ignore;
+    protected $allowed_types;
+    protected $files;
+    protected $hashes;
+    protected $code;
     protected $merge_path;
     protected $path_pattern;
     
@@ -146,14 +145,19 @@ class minify {
     }
     
     public function reset($clear = false) {
-    
-    	if($clear) {
-
-			$this->options = array();
-			return true;
-
-		}
 		
+		$this->options       = array();
+    	$this->posteriority  = array();
+    	$this->priority      = array();
+    	$this->ignore        = array();
+    	$this->allowed_types = array('css', 'js');
+    	$this->files		 = array();
+    	$this->hashes		 = array();
+    	$this->code			 = array();
+    	$this->merge_path	 = '';
+    	$this->path_pattern  = '';
+    	$this->link			 = '';	
+				
 		$this->options = array(
 			'algorithm' => 'crc32b',
 			'cache'     => 'minify.sfv',
@@ -166,8 +170,6 @@ class minify {
 			'suffix'    => 'minify',
 			'type'      => ''
 		);
-		
-		return $this->options;
     
     }
     
