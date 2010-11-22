@@ -16,268 +16,345 @@ require 'minify/CSSMin.class.php';
 class minify {
     
     /* minify vars */
-    private $debug;
-    private $file_dir;
-    private $min_file;
-    private $min_path;
-    private $files;
-    private $type;
-    private $ext;
-    private $hash_file;
-    private $algorithm;
-    private $hashes;
-    private $priority;
-    public  $link;
-    private $combine;
+    protected $options       = array();
+    protected $posteriority  = array();
+    protected $priority      = array();
+    protected $ignore        = array();
+    protected $allowed_types = array('css', 'js');
+    protected $files		 = array();
+    protected $hashes		 = array();
+    protected $code			 = array();
+    
+    protected $merge_path;
+    protected $path_pattern;
+    
+    public $link;
     
     /* debug vars */
     private $start;
     private $stop;
+    private $debug_output = '';
 
-    public function __construct($type, $dir, $filter = array(), $priority = array(), $debug = false) {
+    public function __construct() {
         
-        if($this->debug) $this->start = microtime();
-        
-        /* private variables */
-        $this->debug        = $debug;
-        $this->file_dir     = $dir;
-        $this->type         = $type;
-        $this->filter       = $filter;
-        $this->regexp       = '/^.*\.minify\.(css|js)$/i';
-        $this->priority     = $priority;
-        $this->hash_file    = 'minify.sfv';
-        $this->suffix       = 'minify';
-        $this->algorithm    = 'crc32b';
-        $this->link			= '';
-        
-        $this->combine      = true;
-        $this->combine_name = 'all';
-        $this->combine_path = $this->file_dir . $this->combine_name . '.' . $this->suffix . '.' . $this->type;
-        
-        if($this->debug) echo '<pre><strong>Minify - Compress your files on the fly!</strong>' . "\n" . 'debug information for .' . $this->type . ' files' . "\n\n";
-        
-        /* check if the type is allowed */
-        if($type != 'css' && $type != 'js')
-            return false;
-        
-        /* set the extension and hash file variables depending on the type */
-        if($type == 'css')    $this->ext = '*.css';
-        elseif($type == 'js') $this->ext = '*.js';
+        $this->start = microtime();
+        $this->reset();
+
+	}
+	
+	public function __destruct() {
+	
+		if($this->options['debug']) {
 		
-		 /* get all the files from the dir */
-        if(!$this->getFiles())
-        	trigger_error($this->file_dir . ' does not exist', E_USER_ERROR);
+			print '<pre>' . $this->debug_output;
+		
+			$this->stop = microtime();
+            $res = ($this->stop - $this->start);
+            
+            print "\n" . 'Execution Time: ' . round($res, 6) . '</pre>';
+			
+		}
+	
+	}
+	
+	public function run() {
+        
+        /* check if options->type is valid */
+        if(!in_array($this->options['type'], $this->allowed_types))
+			trigger_error($this->options['type'] . ' is not a valid file type', E_USER_ERROR);
+		
+		/* get all the files from the options->dir */
+		$this->get_files();
+		
+		/* if options->merge is true generate the file path */
+		if($this->options['merge'])
+			$this->get_merge_file();
+		else
+			$this->get_file_pattern();
+
+		$this->debug('--------------------------------------', true);
+		
+		/* compress everything if options->cache doesn't exists */
+		if(!file_exists($this->options['directory'] . $this->options['cache'])) {
+			
+			$this->debug('Trigger: Couldn\'t find ' . $this->options['cache'] . '.', true);
+			$this->compress();				
+			$this->save();
+			$this->generate_hash_file();
+		
+        /* compress and merge everything if options->merge is true and merge_path doesn't exist */
+        } elseif($this->options['merge'] == true && !file_exists($this->merge_path)) {
         	
-        if(empty($this->files)) {
-        	
-        	trigger_error('no files found', E_USER_NOTICE);
-        	return false;
+        	$this->debug('Trigger: Couldn\'t find ' . $this->merge_path . '.', true);
+			$this->compress();
+			$this->save();
+			$this->generate_hash_file();
+		
+		/* compress everything if files and hashes don't match */
+		} elseif(!$this->compare()) {
+			
+			$this->debug('Trigger: Files don\'t match.', true);
+			$this->compress();
+			$this->save();
+			$this->generate_hash_file();
+		
+		} else {
+		
+			$this->debug('Trigger: Everything seems OK!', true);
 		
 		}
+		
+		if($this->options['merge']) {
+		
+			$hash = hash_file($this->options['algorithm'], $this->merge_path);
 			
-        /* check if the minified file and the file with the hashes exists */
-        if(($this->combine == false || file_exists($this->combine_path)) && file_exists($this->file_dir . $this->hash_file) && !$this->compare()) {
-			
-			if($this->combine) {
-				
-				$hash = hash_file($this->algorithm, $this->combine_path);
-				if($this->debug) $this->debug('keep', str_replace($this->file_dir, '', $this->combine_path), $hash, 'OK!');
-				
-				switch($this->type) {
-					case 'js':
-						$this->link = '<script text="text/javascript" src="' . $this->combine_path . '?' . $hash . '"></script>' . "\n";
-						break;
-					case 'css':
-						$this->link = '<link rel="stylesheet" href="' . $this->combine_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
-						break;
-				}
-				
-			} else {
-			
-				foreach($this->hashes as $file => $hash) {
-
-            		$this->debug('save', str_replace($this->file_dir, '', $file), $hash, 'OK!');
-            		
-            		switch($this->type) {
-						case 'js':
-							$this->link .= '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
-							break;
-						case 'css':
-							$this->link .= '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
-							break;
-					}
-            			
-            	}
-			
+			switch($this->options['type']) {
+				case 'js':
+					$this->link = '<script text="text/javascript" src="' . $this->merge_path . '?' . $hash . '"></script>' . "\n";
+					break;
+				case 'css':
+					$this->link = '<link rel="stylesheet" href="' . $this->merge_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+					break;
 			}
-			
-        } else {
-
-            /* compress the files */
-            $this->compress();
-
-            /* generate a new hash file */
-            $this->generate_hash_file();
-			
-			if($this->combine) {
-				
-				$hash = hash_file($this->algorithm, $this->combine_path);
-				if($this->debug) $this->debug('save', str_replace($this->file_dir, '', $this->combine_path), $hash, 'OK!');
-				
-				switch($this->type) {
-					case 'js':
-						$this->link = '<script text="text/javascript" src="' . $this->combine_path . '?' . $hash . '"></script>' . "\n";
-						break;
-					case 'css':
-						$this->link = '<link rel="stylesheet" href="' . $this->combine_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
-						break;
-				}
-				
-			} else {
-			
-				foreach($this->files as $file) {
+		
+		} else {
+		
+			foreach($this->files as $file) {
 					
-					$hash = hash_file($this->algorithm, $file);
-            		$this->debug('save', str_replace($this->file_dir, '', $file), $hash, 'OK!');
-            		
-            		switch($this->type) {
-						case 'js':
-							$this->link .= '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
-							break;
-						case 'css':
-							$this->link .= '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
-							break;
-					}
-            			
-            	}
-			
+				$hash = hash_file($this->options['algorithm'], $this->options['directory'] . $file);
+				
+				switch($this->options['type']) {
+					case 'js':
+						$this->link .= '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
+						break;
+					case 'css':
+						$this->link .= '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+						break;
+				}
+					
 			}
+			
+		}
 
-        }
-     
-        if($this->debug) {
-       
-            $this->stop = microtime();
-            $res = ($this->stop - $this->start);
-            echo "\n" . 'Execution Time: ' . round($res, 6) . '</pre>';
-
-        }
- 
     }
     
-    /* print debug information */
-    private function debug($action, $file, $hash, $status, $pad = 40) {
-        
-        echo str_pad($action, $pad, ' ') . str_pad($file, $pad, ' ') . str_pad($hash, $pad, ' ') . $status . "\n";
+    public function set($name, $value) {
+
+		$this->options[$name] = $value;
+		return $this->options[$name];
+    
+    }
+    
+    public function reset($clear = false) {
+    
+    	if($clear) {
+
+			$this->options = array();
+			return true;
+
+		}
+		
+		$this->options = array(
+			'algorithm' => 'crc32b',
+			'cache'     => 'minify.sfv',
+			'debug'     => false,
+			'directory' => '',
+			'merge'     => true,
+			'name'      => 'all',
+			'prefix'    => false,
+			'regex'     => '/^.*\.minify\.(css|js)$/i',
+			'suffix'    => 'minify',
+			'type'      => ''
+		);
+		
+		return $this->options;
+    
+    }
+    
+    private function debug($output, $linebreak = false) {
+    	
+    	if($this->options['debug'] == true) {
+    		
+    		if($linebreak)
+    			$this->debug_output .= "\n";
+    		
+    		if(is_array($output)) {
+    		
+    			foreach($output as $ent)
+					$this->debug_output .= ' - ' . $ent . "\n";
+    		
+    		} else
+    			$this->debug_output .= $output . "\n";
+    		
+    		return true;
+    	
+    	} else return false;
+    
+    }
+    
+    private function get_merge_file() {
+    
+    	$this->merge_path = $this->options['directory'];
+    	
+    	if($this->options['prefix'])
+    		$this->merge_path .= $this->options['prefix'] . '.';
+    	
+    	$this->merge_path .= $this->options['name'];
+    	
+    	if($this->options['suffix'])
+    		$this->merge_path .= '.' . $this->options['suffix'];
+    		
+		$this->merge_path .= '.' . $this->options['type'];
+		
+		$this->debug('Path: ' . $this->merge_path, true);
+		return true;
+    
+    }
+    
+    private function get_file_pattern() {
+    
+    	$this->path_pattern = $this->options['directory'];
+    	
+    	if($this->options['prefix'])
+    		$this->path_pattern .= $this->options['prefix'] . '.';
+    	
+    	$this->path_pattern .= '%s';
+    	
+    	if($this->options['suffix'])
+    		$this->path_pattern .= '.' . $this->options['suffix'];
+    		
+		$this->path_pattern .= '.' . $this->options['type'];
+		
+		$this->debug('Path: ' . $this->path_pattern, true);
+		return true;
     
     }
 
     /* get all files in a folder */
-    private function getFiles() {
+    private function get_files() {
 		
-		if(!file_exists($this->file_dir))
-			return false;
+		if(!file_exists($this->options['directory']))
+			trigger_error($this->options['directory'] . ' does not exist', E_USER_ERROR);
 		
-        $dir  = scandir($this->file_dir);
-		$sdir = array();
+        $directory = scandir($this->options['directory']);
+		$files     = array();
 		
-        foreach($dir as $i => $entry) {
-        
-            if($entry != '.' && $entry != '..' && fnmatch($this->ext, $entry) && (!is_array($this->filter) || !in_array($entry, $this->filter)) && !preg_match($this->regexp, $entry)) {
-            
-                $sdir[] = $this->file_dir . $entry;
-                $this->hashes[$entry] = hash_file($this->algorithm, $this->file_dir . $entry);
-                
-            }
-            
+        foreach($directory as $file) {
+        	
+        	if($file != '.' && $file != '..') {
+        		if(fnmatch('*.' . $this->options['type'], $file)) {
+        			if(!in_array($file, $this->ignore)) {
+        				if(!preg_match($this->options['regex'], $file)) {
+							
+							array_push($files, $file);
+							$this->hashes[$file] = hash_file($this->options['algorithm'], $this->options['directory'] . $file);
+							
+        				}
+        			}
+        		}
+        	}
+        	
         }
         
-        $sdir = $this->order($sdir);
-        $this->files = $sdir;
-        
+        if(empty($files))
+        	trigger_error('no files found', E_USER_NOTICE);
+       	
+       	$this->debug('Files:', true);
+		$this->debug($files);	
+       	
+        $this->order($files);
         return true;
 
     }
     
-    /* order the files after priority */
-    private function order($dir) {
+    /* order the files */
+    private function order($files) {
         
-        $sdir = array();
+        $return = array();
         
         foreach($this->priority as $file) {
         	
-        	if(file_exists($this->file_dir . $file))
-        		$sdir[] = $this->file_dir . $file;
+        	if(file_exists($this->options['directory'] . $file))
+        		array_push($return, $file);
         		
         	else
         		trigger_error($file . ' does not exist', E_USER_NOTICE);
         
         }
            
-        foreach($dir as $file) {
+        foreach($files as $file) {
 
-            if(!in_array(str_replace($this->file_dir, '', $file), $this->priority)) {
-
-                $sdir[] = $file;
-
-            }
+            if(!in_array(str_replace($this->options['directory'], '', $file), $this->priority) && !in_array(str_replace($this->options['directory'], '', $file), $this->posteriority))
+				array_push($return, $file);
 
         }
         
-        return $sdir;
+        foreach($this->posteriority as $file) {
+        	
+        	if(file_exists($this->options['directory'] . $file))
+        		array_push($return, $file);
+        		
+        	else
+        		trigger_error($file . ' does not exist', E_USER_NOTICE);
+        
+        }
+        
+        $this->debug('Order:', true);
+		$this->debug($files);	
+        
+		$this->files = $return;
+		return true;
     
     }
 
-    /* compare every files md4 with the hashes */
+    /* compare every file with the hash */
     private function compare() {
         
-        $cache = file_get_contents($this->file_dir . $this->hash_file);
+        $cache = file_get_contents($this->options['directory'] . $this->options['cache']);
         $cache = explode("\n", $cache);
 
-        foreach($cache as $key => $val) {
+        foreach($cache as $line) {
             
-            $data = explode(' ', $val);
-            $hashes[$data[0]] = $data[1];
-
-        }
-
-        foreach($this->files as $file) {
-                        
-            $file = explode('/', $file);
-            
-            if(!array_key_exists($file[1], $hashes)) {
-                if($this->debug) $this->debug('check', $file[1], $this->hashes[$file[1]], 'FAIL!');
-                return true;
-            }
-            
-            if($this->hashes[$file[1]] != $hashes[$file[1]]) {
-                if($this->debug) $this->debug('check', $file[1], $this->hashes[$file[1]], 'FAIL!');
-                return true;
-            }
-            
-            unset($hashes[$file[1]]);
-            if($this->debug) $this->debug('check', $file[1], $this->hashes[$file[1]], 'OK!');
+            list($file, $hash) = explode(' ', $line);
+            $hashes[$file] = $hash;
 
         }
         
-        if(empty($hashes))
-        	return false;
+        $this->debug('Compare:', true);
 
-        return false;
+        foreach($this->files as $file) {
+            
+            if(!array_key_exists($file, $hashes)) {
+            
+            	$this->debug('check' . "\t" . $file . "\t" . $this->hashes[$file] . "\t" . 'FAIL!');
+            	return false;
+            
+            }
+            
+            if($this->hashes[$file] != $hashes[$file]) {
+            
+                $this->debug('check' . "\t" . $file . "\t" . $this->hashes[$file] . "\t" . 'FAIL!');
+                return false;
+                
+            }
+            
+            unset($hashes[$file]);
+            $this->debug('check' . "\t" . $file . "\t" . $this->hashes[$file] . "\t" . 'OK!');
+
+        }
+
+        return true;
 
     }
 
-    /* compress the code with it's own minify class */
+    /* compress the files */
     private function compress() {
+
+		foreach($this->files as $file) {
 		
-		if($this->combine == true) {
-		
-			$code = '';
-		
-		    foreach($this->files as $file)
-		        $code .= file_get_contents($file) . "\n";
-		        
-	        switch($this->type) {
+	        $code = file_get_contents($this->options['directory'] . $file);
+	        
+	        switch($this->options['type']) {
 			   	case 'js':
 			   		$js   = new JSMin($code);
 			   		$code = trim($js->pack());
@@ -286,49 +363,64 @@ class minify {
 			   		$css  = new CSSMin();
 			   		$code = trim($css->compress($code));
 			   		break;
-	       	}
-	    
-	    	file_put_contents($this->combine_path, $code);   	
-		
-		} else {
-		
-			foreach($this->files as $file) {
-			
-		        $code = file_get_contents($file);
-		        
-		        switch($this->type) {
-				   	case 'js':
-				   		$js   = new JSMin($code);
-				   		$code = trim($js->pack());
-				   		break;
-				   	case 'css':
-				   		$css  = new CSSMin();
-				   		$code = trim($css->compress($code));
-				   		break;
-			   	}
-			   	
-			   	$ext  = strrchr($file, '.');  
-         		$path = substr($file, 0, -strlen($ext)) . $suffix . $ext;   
-			   	
-			   	file_put_contents($path, $code);
-		        
-			}
-		
+		   	}
+		   	
+		   	$this->code[$file] = $code;
+	        
 		}
 
+    }
+    
+    private function save() {
+
+    	if($this->options['merge']) {
+    	
+			$code = '';
+			
+			foreach($this->code as $string)
+				$code .= $string;
+			
+			file_put_contents($this->merge_path, $code);
+
+			$this->debug('Code saved to ' . $this->merge_path, true);
+			return true;
+			
+    	} else {
+    	
+    		foreach($this->code as $file => $string) {
+    		
+				$ext = strrchr($file, '.');  
+					
+					if($ext !== false)  
+						$file = substr($file, 0, -strlen($ext));  
+				
+				$path = sprintf($this->path_pattern, $file);
+				
+				file_put_contents($path, $string);
+				$this->debug('Code saved to ' . $path, true);
+			
+			}
+			
+			return true;
+    	
+    	}
+    
     }
 
     /* generate a new hash file */
     private function generate_hash_file() {
         
         $cache = '';
-        
+        $this->debug('Cache:', true);
+  
         foreach($this->hashes as $file => $hash) {
+        
             $cache .= $file . ' ' . $hash . "\n";
-            if($this->debug) $this->debug('cache', $file, $hash, 'OK!');
+            $this->debug('cache' . "\t" . $file . "\t" . $hash . "\t" . 'OK!');
+            
         }
         
-        file_put_contents($this->file_dir . $this->hash_file, trim($cache));
+        file_put_contents($this->options['directory'] . $this->options['cache'], trim($cache));
 
     }
 
