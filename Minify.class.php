@@ -76,7 +76,7 @@ class minify {
 		/* compress everything if options->cache doesn't exists */
 		if(!file_exists($this->options['directory'] . $this->options['cache'])) {
 			
-			$this->debug('Trigger: Couldn\'t find ' . $this->options['cache'] . '.', true);
+			$this->debug('Status: Couldn\'t find ' . $this->options['cache'] . '.', true);
 			$this->compress();				
 			$this->save();
 			$this->generate_hash_file();
@@ -84,7 +84,7 @@ class minify {
         /* compress and merge everything if options->merge is true and merge_path doesn't exist */
         } elseif($this->options['merge'] == true && !file_exists($this->merge_path)) {
         	
-        	$this->debug('Trigger: Couldn\'t find ' . $this->merge_path . '.', true);
+        	$this->debug('Status: Couldn\'t find ' . $this->merge_path . '.', true);
 			$this->compress();
 			$this->save();
 			$this->generate_hash_file();
@@ -92,14 +92,14 @@ class minify {
 		/* compress everything if files and hashes don't match */
 		} elseif(!$this->compare()) {
 			
-			$this->debug('Trigger: Files don\'t match.', true);
+			$this->debug('Status: Files don\'t match.', true);
 			$this->compress();
 			$this->save();
 			$this->generate_hash_file();
 		
 		} else {
 		
-			$this->debug('Trigger: Everything seems OK!', true);
+			$this->debug('Status: Everything seems OK!', true);
 		
 		}
 		
