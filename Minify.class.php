@@ -26,6 +26,7 @@ class minify {
     protected $code;
     protected $merge_path;
     protected $path_pattern;
+    protected $all_files;
     
     public $link;
     
@@ -65,13 +66,9 @@ class minify {
 		/* get all the files from the options->dir */
 		$this->get_files();
 		
-		/* if options->merge is true generate the file path */
-		if($this->options['merge'])
-			$this->get_merge_file();
-		else
-			$this->get_file_pattern();
-
-		$this->debug('--------------------------------------', true);
+		/* generate merge_path and path_pattern */
+		$this->get_merge_path();
+		$this->get_path_pattern();
 		
 		/* compress everything if options->cache doesn't exists */
 		if(!file_exists($this->options['directory'] . $this->options['cache'])) {
@@ -134,13 +131,14 @@ class minify {
 			}
 			
 		}
+		
+		$this->debug('--------------------------------------', true);
 
     }
     
     public function set($name, $value) {
 
 		$this->options[$name] = $value;
-		return $this->options[$name];
     
     }
     
@@ -156,7 +154,8 @@ class minify {
     	$this->code			 = array();
     	$this->merge_path	 = '';
     	$this->path_pattern  = '';
-    	$this->link			 = '';	
+    	$this->link			 = '';
+    	$this->all_files	 = array();
 				
 		$this->options = array(
 			'algorithm' => 'crc32b',
@@ -170,7 +169,7 @@ class minify {
 			'suffix'    => 'minify',
 			'type'      => ''
 		);
-    
+    	    	
     }
     
     private function debug($output, $linebreak = false) {
@@ -194,7 +193,7 @@ class minify {
     
     }
     
-    private function get_merge_file() {
+    private function get_merge_path() {
     
     	$this->merge_path = $this->options['directory'];
     	
@@ -208,12 +207,12 @@ class minify {
     		
 		$this->merge_path .= '.' . $this->options['type'];
 		
-		$this->debug('Path: ' . $this->merge_path, true);
+		$this->debug('Merge Path: ' . $this->merge_path, true);
 		return true;
     
     }
     
-    private function get_file_pattern() {
+    private function get_path_pattern() {
     
     	$this->path_pattern = $this->options['directory'];
     	
@@ -227,7 +226,7 @@ class minify {
     		
 		$this->path_pattern .= '.' . $this->options['type'];
 		
-		$this->debug('Path: ' . $this->path_pattern, true);
+		$this->debug('Path Pattern: ' . $this->path_pattern);
 		return true;
     
     }
@@ -240,6 +239,8 @@ class minify {
 		
         $directory = scandir($this->options['directory']);
 		$files     = array();
+		
+		$this->all_files = $directory;
 		
         foreach($directory as $file) {
         	
@@ -385,7 +386,6 @@ class minify {
 			file_put_contents($this->merge_path, $code);
 
 			$this->debug('Code saved to ' . $this->merge_path, true);
-			return true;
 			
     	} else {
     	
@@ -399,13 +399,15 @@ class minify {
 				$path = sprintf($this->path_pattern, $file);
 				
 				file_put_contents($path, $string);
+				
 				$this->debug('Code saved to ' . $path, true);
 			
 			}
 			
-			return true;
-    	
     	}
+    	
+    	$this->clean();
+    	return true;
     
     }
 
@@ -424,6 +426,31 @@ class minify {
         
         file_put_contents($this->options['directory'] . $this->options['cache'], trim($cache));
 
+    }
+    
+    /* clean up old files */
+    private function clean() {
+	
+		foreach($this->all_files as $file) {
+			
+			if($this->options['merge']) {
+				if($this->options['directory'] . $file != $this->merge_path && preg_match($this->options['regex'], $file)) {
+					
+					unlink($this->options['directory'] .  $file);
+					$this->debug($file . ' removed.');
+				
+				}
+			} else {
+				if($this->options['directory'] . $file == $this->merge_path) {
+					
+					unlink($this->options['directory'] . $file);
+					$this->debug($file . ' removed.');
+					
+				}
+			}
+		
+		}
+	   
     }
 
 }
