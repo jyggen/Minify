@@ -27,5 +27,10 @@ $minify->run();
 		<title>Minify - Compress your files on the fly!</title>
 	</head> 
 	<body>
+	<?php
+	foreach($minify->links as $link) {
+		htmlentities($link);
+	}
+	?>
 	</body>
 </html>

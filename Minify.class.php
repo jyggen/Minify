@@ -28,7 +28,7 @@ class minify {
     protected $path_pattern;
     protected $all_files;
     
-    public $link;
+    public $links = array();
     
     /* debug vars */
     private $start;
@@ -106,10 +106,10 @@ class minify {
 			
 			switch($this->options['type']) {
 				case 'js':
-					$this->link = '<script text="text/javascript" src="' . $this->merge_path . '?' . $hash . '"></script>' . "\n";
+					array_push($this->links, '<script text="text/javascript" src="' . $this->merge_path . '?' . $hash . '"></script>' . "\n");
 					break;
 				case 'css':
-					$this->link = '<link rel="stylesheet" href="' . $this->merge_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+					array_push($this->links, '<link rel="stylesheet" href="' . $this->merge_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
 					break;
 			}
 		
@@ -121,10 +121,10 @@ class minify {
 				
 				switch($this->options['type']) {
 					case 'js':
-						$this->link .= '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
+						array_push($this->links, '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n");
 						break;
 					case 'css':
-						$this->link .= '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n";
+						array_push($this->links, '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
 						break;
 				}
 					
@@ -154,7 +154,6 @@ class minify {
     	$this->code			 = array();
     	$this->merge_path	 = '';
     	$this->path_pattern  = '';
-    	$this->link			 = '';
     	$this->all_files	 = array();
 				
 		$this->options = array(
