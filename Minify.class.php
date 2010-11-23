@@ -100,44 +100,7 @@ class minify {
 		
 		}
 		
-		if($this->options['merge']) {
-		
-			$hash = hash_file($this->options['algorithm'], $this->merge_path);
-			
-			switch($this->options['type']) {
-				case 'js':
-					array_push($this->links, '<script text="text/javascript" src="' . $this->merge_path . '?' . $hash . '"></script>' . "\n");
-					break;
-				case 'css':
-					array_push($this->links, '<link rel="stylesheet" href="' . $this->merge_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
-					break;
-			}
-		
-		} else {
-		
-			foreach($this->files as $file) {
-					
-				$hash = hash_file($this->options['algorithm'], $this->options['directory'] . $file);
-				
-				$ext = strrchr($file, '.');  
-					
-				if($ext !== false)  
-					$file = substr($file, 0, -strlen($ext));
-					
-				$file = sprintf($this->path_pattern, $file);
-				
-				switch($this->options['type']) {
-					case 'js':
-						array_push($this->links, '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n");
-						break;
-					case 'css':
-						array_push($this->links, '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
-						break;
-				}
-					
-			}
-			
-		}
+		$this->get_links();
 		
 		$this->debug('--------------------------------------', true);
 
@@ -161,7 +124,7 @@ class minify {
 	
 	}
     
-    public function reset($clear = false) {
+    public function reset() {
 		
 		$this->options       = array();
     	$this->posteriority  = array();
@@ -246,6 +209,49 @@ class minify {
 		
 		$this->debug('Path Pattern: ' . $this->path_pattern);
 		return true;
+    
+    }
+    
+    private function get_links() {
+    
+    	if($this->options['merge']) {
+		
+			$hash = hash_file($this->options['algorithm'], $this->merge_path);
+			
+			switch($this->options['type']) {
+				case 'js':
+					array_push($this->links, '<script text="text/javascript" src="' . $this->merge_path . '?' . $hash . '"></script>' . "\n");
+					break;
+				case 'css':
+					array_push($this->links, '<link rel="stylesheet" href="' . $this->merge_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
+					break;
+			}
+		
+		} else {
+		
+			foreach($this->files as $file) {
+					
+				$hash = hash_file($this->options['algorithm'], $this->options['directory'] . $file);
+				
+				$ext = strrchr($file, '.');  
+					
+				if($ext !== false)  
+					$file = substr($file, 0, -strlen($ext));
+					
+				$file = sprintf($this->path_pattern, $file);
+				
+				switch($this->options['type']) {
+					case 'js':
+						array_push($this->links, '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n");
+						break;
+					case 'css':
+						array_push($this->links, '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
+						break;
+				}
+					
+			}
+			
+		}
     
     }
 
