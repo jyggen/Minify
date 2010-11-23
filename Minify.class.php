@@ -147,6 +147,12 @@ class minify {
 		array_push($this->priority, $file);
 	
 	}
+	
+	public function posterioritize($file) {
+	
+		array_push($this->posteriority, $file);
+	
+	}
     
     public function reset($clear = false) {
 		
@@ -346,10 +352,13 @@ class minify {
                 
             }
             
-            unset($hashes[$file]);
-            $this->debug('check' . "\t" . $file . "\t" . $this->hashes[$file] . "\t" . 'OK!');
+			unset($hashes[$file]);
+			$this->debug('check' . "\t" . $file . "\t" . $this->hashes[$file] . "\t" . 'OK!');
 
         }
+        
+        if(!empty($hashes))
+        	return false;
 
         return true;
 
