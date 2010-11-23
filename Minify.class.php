@@ -119,12 +119,19 @@ class minify {
 					
 				$hash = hash_file($this->options['algorithm'], $this->options['directory'] . $file);
 				
+				$ext = strrchr($file, '.');  
+					
+				if($ext !== false)  
+					$file = substr($file, 0, -strlen($ext));
+					
+				$file = sprintf($this->path_pattern, $file);
+				
 				switch($this->options['type']) {
 					case 'js':
-						array_push($this->links, '<script text="text/javascript" src="' . $this->options['directory'] . $file . '?' . $hash . '"></script>' . "\n");
+						array_push($this->links, '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n");
 						break;
 					case 'css':
-						array_push($this->links, '<link rel="stylesheet" href="' . $this->options['directory'] . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
+						array_push($this->links, '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
 						break;
 				}
 					
@@ -429,8 +436,8 @@ class minify {
     		
 				$ext = strrchr($file, '.');  
 					
-					if($ext !== false)  
-						$file = substr($file, 0, -strlen($ext));  
+				if($ext !== false)  
+					$file = substr($file, 0, -strlen($ext));  
 				
 				$path = sprintf($this->path_pattern, $file);
 				
