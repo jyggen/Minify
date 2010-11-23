@@ -29,7 +29,7 @@ $minify->run();
 	<body>
 	<?php
 	foreach($minify->links as $link) {
-		htmlentities($link);
+		echo htmlentities($link) . '<br>';
 	}
 	?>
 	</body>

@@ -121,10 +121,10 @@ class minify {
 				
 				switch($this->options['type']) {
 					case 'js':
-						array_push($this->links, '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n");
+						array_push($this->links, '<script text="text/javascript" src="' . $this->options['directory'] . $file . '?' . $hash . '"></script>' . "\n");
 						break;
 					case 'css':
-						array_push($this->links, '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
+						array_push($this->links, '<link rel="stylesheet" href="' . $this->options['directory'] . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
 						break;
 				}
 					
@@ -419,6 +419,7 @@ class minify {
     	if($this->options['merge']) {
 
 			file_put_contents($this->merge_path, $this->code);
+			chmod($this->merge_path, 0755);
 
 			$this->debug('Code saved to ' . $this->merge_path);
 			
@@ -434,6 +435,7 @@ class minify {
 				$path = sprintf($this->path_pattern, $file);
 				
 				file_put_contents($path, $string);
+				chmod($path, 0755);
 				
 				$this->debug('Code saved to ' . $path);
 			
@@ -460,6 +462,7 @@ class minify {
         }
         
         file_put_contents($this->options['directory'] . $this->options['cache'], trim($cache));
+        chmod($this->options['directory'] . $this->options['cache'], 0600);
 
     }
     
