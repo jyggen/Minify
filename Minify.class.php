@@ -6,7 +6,7 @@
  * JSMin Class by Nicolas Martin
  * http://joliclic.free.fr/php/javascript-packer/en/
  *
- * CSSMin Class by Corey Hart
+ * CSS Compressor by Corey Hart
  * http://www.codenothing.com/
  */
 
@@ -34,16 +34,21 @@ class minify {
     private $start;
     private $stop;
     private $debug_output = '';
-
+	
+	/* when Minify is initiated */
     public function __construct() {
         
         $this->start = microtime(true);
+        
+        /* Reset everything to their default values */
         $this->reset();
 
 	}
 	
+	/* when Minify is closed */
 	public function __destruct() {
-	
+		
+		/* if debug is enabled output lots of data collected during runtime */
 		if($this->options['debug']) {
 		
 			print '<pre>' . $this->debug_output;
@@ -57,6 +62,7 @@ class minify {
 	
 	}
 	
+	/* Minify! */
 	public function run() {
         
         /* check if options->type is valid */
@@ -94,36 +100,42 @@ class minify {
 			$this->save();
 			$this->generate_hash_file();
 		
+		/* roll with our existing files */
 		} else {
 		
 			$this->debug('Status: Everything seems OK!', true);
 		
 		}
 		
+		/* fetch the html code for all files */
 		$this->get_links();
 		
 		$this->debug('--------------------------------------', true);
 
     }
     
+    /* set option $name to $value */
     public function set($name, $value) {
 
 		$this->options[$name] = $value;
     
     }
 	
+	/* prioritize $file when compressing.  */
 	public function prioritize($file) {
 	
 		array_push($this->priority, $file);
 	
 	}
 	
+	/* posterioritize $file when compressing. */
 	public function posterioritize($file) {
 	
 		array_push($this->posteriority, $file);
 	
 	}
     
+    /* reset everything to their default values */
     public function reset() {
 		
 		$this->options       = array();
@@ -155,6 +167,7 @@ class minify {
     	    	
     }
     
+    /* save $output for later use. $linebreak will add a new line in front of $output */
     private function debug($output, $linebreak = false) {
     	
     	if($this->options['debug'] == true) {
@@ -176,6 +189,7 @@ class minify {
     
     }
     
+    /* generate the path and name of the merged file */
     private function get_merge_path() {
     
     	$this->merge_path = $this->options['directory'];
@@ -195,6 +209,7 @@ class minify {
     
     }
     
+    /* generate the pattern which each file will get named after */
     private function get_path_pattern() {
     
     	$this->path_pattern = $this->options['directory'];
@@ -214,6 +229,7 @@ class minify {
     
     }
     
+    /* generate an array with html code for each file */
     private function get_links() {
     
     	if($this->options['merge']) {
@@ -257,7 +273,7 @@ class minify {
     
     }
 
-    /* get all files in a folder */
+    /* get all files in options->directory and order them */
     private function get_files() {
 		
 		if(!file_exists($this->options['directory']))
@@ -296,7 +312,7 @@ class minify {
 
     }
     
-    /* order the files */
+    /* order the files (priority -> normal -> posteriority) */
     private function order($files) {
         
         $return = array();
@@ -336,7 +352,7 @@ class minify {
     
     }
 
-    /* compare every file with the hash */
+    /* compare every file with the hashes in the cache file */
     private function compare() {
         
         $cache = file_get_contents($this->options['directory'] . $this->options['cache']);
@@ -379,7 +395,7 @@ class minify {
 
     }
 
-    /* compress the files */
+    /* compress the code in the files */
     private function compress() {
 		
 		if(!$this->options['merge']) {
@@ -427,6 +443,7 @@ class minify {
 
     }
     
+    /* save the code to disk, either in a merged file or in seperate files */
     private function save() {
 		
 		$this->debug('Save:', true);	
@@ -463,7 +480,7 @@ class minify {
     
     }
 
-    /* generate a new hash file */
+    /* generate and save a new cache */
     private function generate_hash_file() {
         
         $cache = '';
@@ -481,7 +498,7 @@ class minify {
 
     }
     
-    /* clean up old files */
+    /* remove old files (eg. if you change options->merge to false from true) */
     private function clean() {
 	
 		foreach($this->all_files as $file) {
