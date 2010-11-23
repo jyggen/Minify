@@ -11,7 +11,7 @@
  */
 
 require 'minify/JSMin.class.php';
-require 'minify/CSSMin.class.php';
+require 'minify/CSSCompression.php';
 
 class minify {
     
@@ -141,6 +141,12 @@ class minify {
 		$this->options[$name] = $value;
     
     }
+	
+	public function prioritize($file) {
+	
+		array_push($this->priority, $file);
+	
+	}
     
     public function reset($clear = false) {
 		
@@ -351,24 +357,48 @@ class minify {
 
     /* compress the files */
     private function compress() {
-
-		foreach($this->files as $file) {
 		
-	        $code = file_get_contents($this->options['directory'] . $file);
-	        
-	        switch($this->options['type']) {
-			   	case 'js':
-			   		$js   = new JSMin($code);
-			   		$code = trim($js->pack());
-			   		break;
-			   	case 'css':
-			   		$css  = new CSSMin();
-			   		$code = trim($css->compress($code));
-			   		break;
-		   	}
-		   	
-		   	$this->code[$file] = $code;
-	        
+		if(!$this->options['merge']) {
+		
+			foreach($this->files as $file) {
+				
+				$code = file_get_contents($this->options['directory'] . $file);
+				
+				switch($this->options['type']) {
+					case 'js':
+						$js   = new JSMin($code);
+						$code = trim($js->pack());
+						break;
+					case 'css':
+						$css  = new CSSCompression();
+						$code = trim($css->compress($code));
+						break;
+				}
+				
+				$this->code[$file] = $code;
+				
+			}
+			
+		} else {
+			
+			$code = '';
+			
+			foreach($this->files as $file)
+				$code .= file_get_contents($this->options['directory'] . $file);
+				
+			switch($this->options['type']) {
+				case 'js':
+					$js   = new JSMin($code);
+					$code = trim($js->pack());
+					break;
+				case 'css':
+					$css  = new CSSCompression();
+					$code = trim($css->compress($code));
+					break;
+			}
+			
+			$this->code = $code;
+			
 		}
 
     }
@@ -376,13 +406,8 @@ class minify {
     private function save() {
 
     	if($this->options['merge']) {
-    	
-			$code = '';
-			
-			foreach($this->code as $string)
-				$code .= $string;
-			
-			file_put_contents($this->merge_path, $code);
+
+			file_put_contents($this->merge_path, $this->code);
 
 			$this->debug('Code saved to ' . $this->merge_path, true);
 			
