@@ -139,16 +139,18 @@ class minify {
     	$this->all_files	 = array();
 				
 		$this->options = array(
-			'algorithm' => 'crc32b',
-			'cache'     => 'minify.sfv',
-			'debug'     => false,
-			'directory' => '',
-			'merge'     => true,
-			'name'      => 'all',
-			'prefix'    => false,
-			'regex'     => '/^.*\.minify\.(css|js)$/i',
-			'suffix'    => 'minify',
-			'type'      => ''
+			'algorithm'  => 'crc32b',
+			'cache'      => 'minify.sfv',
+			'debug'      => false,
+			'directory'  => '',
+			'merge'      => true,
+			'name'       => 'all',
+			'prefix'     => false,
+			'regex'      => '/^.*\.minify\.(css|js)$/i',
+			'script_src' => '<script type="text/javascript" src=%s?%s"></script>' . "\n",
+			'style_link' => '<link rel="stylesheet" type="text/css" media="screen" href="%s?%s" />' . "\n",
+			'suffix'     => 'minify',
+			'type'       => ''
 		);
     	    	
     }
@@ -220,10 +222,10 @@ class minify {
 			
 			switch($this->options['type']) {
 				case 'js':
-					array_push($this->links, '<script text="text/javascript" src="' . $this->merge_path . '?' . $hash . '"></script>' . "\n");
+					array_push($this->links, sprintf($this->options['script_src'], $this->merge_path, $hash));
 					break;
 				case 'css':
-					array_push($this->links, '<link rel="stylesheet" href="' . $this->merge_path . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
+					array_push($this->links, sprintf($this->options['style_link'], $this->merge_path, $hash));
 					break;
 			}
 		
@@ -242,10 +244,10 @@ class minify {
 				
 				switch($this->options['type']) {
 					case 'js':
-						array_push($this->links, '<script text="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n");
+						array_push($this->links, sprintf($this->options['script_src'], $file, $hash));
 						break;
 					case 'css':
-						array_push($this->links, '<link rel="stylesheet" href="' . $file . '?' . $hash . '" type="text/css" media="screen" />' . "\n");
+						array_push($this->links, sprintf($this->options['style_link'], $file, $hash));
 						break;
 				}
 					
