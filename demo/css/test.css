@@ -39,9 +39,9 @@ fieldset {
 .required{color:red;}
 .info{font-weight:normal;font-style:italic;}
 #testform input{width: 150px; border: 1px solid #000000;padding:7px;}
-input.valid {background:green;color:white;}
-input.error {background:red;color:white;}
-label.error {display:inline;padding-left:15px;color:red;line-height:1.4em; clear:both;}
+input.valid{background:green;color:white;}
+input.error{background:red;color:white;}
+label.error{display:inline;padding-left:15px;color:red;line-height:1.4em; clear:both;}
 
 .sticky {
 	background: #3291BF;
@@ -460,15 +460,7 @@ label {
   width:67px
 }
 
-
-
-
-
-
-
 /* EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE? */
-
-
 
 .top_box
 {
@@ -720,11 +712,5 @@ blockquote blockquote {
   z-index: 99;
 }
 
-* html #facebox_overlay { /* ie6 hack */
-  position: absolute;
-  height: expression(document.body.scrollHeight > document.body.offsetHeight ? document.body.scrollHeight : document.body.offsetHeight + 'px');
-}
-
 .lightTip .content				{ padding: 10px; border: 6px solid #e2e2e2; -moz-border-radius: 5px; -webkit-border-radius: 5px; background: #ffffff; color: #020202; }
 .lightTip .bottom				{ height: 14px; background: url(../gfx/notch-white.png) top center no-repeat; }
-

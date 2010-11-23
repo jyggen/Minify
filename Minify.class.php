@@ -37,7 +37,7 @@ class minify {
 
     public function __construct() {
         
-        $this->start = microtime();
+        $this->start = microtime(true);
         $this->reset();
 
 	}
@@ -48,8 +48,8 @@ class minify {
 		
 			print '<pre>' . $this->debug_output;
 		
-			$this->stop = microtime();
-            $res = ($this->stop - $this->start);
+			$this->stop = microtime(true);
+            $res = $this->stop - $this->start;
             
             print "\n" . 'Execution Time: ' . round($res, 6) . '</pre>';
 			
@@ -413,12 +413,14 @@ class minify {
     }
     
     private function save() {
-
+		
+		$this->debug('Save:', true);	
+		
     	if($this->options['merge']) {
 
 			file_put_contents($this->merge_path, $this->code);
 
-			$this->debug('Code saved to ' . $this->merge_path, true);
+			$this->debug('Code saved to ' . $this->merge_path);
 			
     	} else {
     	
@@ -433,7 +435,7 @@ class minify {
 				
 				file_put_contents($path, $string);
 				
-				$this->debug('Code saved to ' . $path, true);
+				$this->debug('Code saved to ' . $path);
 			
 			}
 			
