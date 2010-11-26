@@ -154,6 +154,7 @@ class minify {
 			'algorithm'  => 'crc32b',
 			'cache'      => 'minify.sfv',
 			'debug'      => false,
+			'absolute'   => true,
 			'directory'  => '',
 			'merge'      => true,
 			'name'       => 'all',
@@ -236,12 +237,16 @@ class minify {
 		
 			$hash = hash_file($this->options['algorithm'], $this->merge_path);
 			
+			if($this->options['absolute'])
+				$path = '/' . $this->merge_path;
+			else
+				$path = $this->merge_path;
+			
 			switch($this->options['type']) {
 				case 'js':
-					array_push($this->links, sprintf($this->options['script_src'], $this->merge_path, $hash));
-					break;
+					array_push($this->links, sprintf($this->options['script_src'], $path, $hash));
 				case 'css':
-					array_push($this->links, sprintf($this->options['style_link'], $this->merge_path, $hash));
+					array_push($this->links, sprintf($this->options['style_link'], $path, $hash));
 					break;
 			}
 		
@@ -257,6 +262,9 @@ class minify {
 					$file = substr($file, 0, -strlen($ext));
 					
 				$file = sprintf($this->path_pattern, $file);
+				
+				if($this->options['absolute'])
+					$file = '/' . $file;
 				
 				switch($this->options['type']) {
 					case 'js':
