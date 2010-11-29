@@ -8,7 +8,7 @@ $minify = new Minify();
 $minify->set('debug', true);
 $minify->set('type', 'css');
 $minify->set('directory', 'css/');
-$minify->set('merge', false);
+$minify->set('merge', true);
 
 $minify->run();
 $minify->reset();
@@ -16,7 +16,7 @@ $minify->reset();
 $minify->set('debug', true);
 $minify->set('type', 'js');
 $minify->set('directory', 'js/');
-$minify->set('merge', false);
+$minify->set('merge', true);
 
 $minify->run();
 ?>

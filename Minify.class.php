@@ -160,7 +160,7 @@ class minify {
 			'name'       => 'all',
 			'prefix'     => false,
 			'regex'      => '/^.*\.minify\.(css|js)$/i',
-			'script_src' => '<script type="text/javascript" src=%s?%s"></script>' . "\n",
+			'script_src' => '<script type="text/javascript" src="%s?%s"></script>' . "\n",
 			'style_link' => '<link rel="stylesheet" type="text/css" media="screen" href="%s?%s" />' . "\n",
 			'suffix'     => 'minify',
 			'type'       => ''
@@ -245,6 +245,7 @@ class minify {
 			switch($this->options['type']) {
 				case 'js':
 					array_push($this->links, sprintf($this->options['script_src'], $path, $hash));
+					break;
 				case 'css':
 					array_push($this->links, sprintf($this->options['style_link'], $path, $hash));
 					break;
