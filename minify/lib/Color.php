@@ -15,8 +15,10 @@ Class CSSCompression_Color
 	 * @param (regex) rrgb: Checks for rgb notation
 	 * @param (regex) rhex: Checks for hex code
 	 * @param (regex) rfullhex: Checks for full 6 character hex code
+	 * @static (array) color2hex: Long color name to hex code conversions
 	 * @static (array) hex2short: Hex code to short color name conversions
-	 * @static (array) long2hex: Long color name to hex code conversions
+	 * @static (array) hex2short_safe: CSS Level 1 safe color names that are shorter than hex codes
+	 * @static (array) files: List of static helpers with their class vars
 	 */
 	private $Control;
 	private $options = array();
@@ -25,6 +27,12 @@ Class CSSCompression_Color
 	private $rfullhex = "/^#([0-9a-f]{6})$/i";
 	private static $color2hex = array();
 	private static $hex2short = array();
+	private static $hex2short_safe = array();
+	private static $files = array(
+		'color2hex' => 'long2hex-colors.json',
+		'hex2short' => 'hex2short-colors.json',
+		'hex2short_safe' => 'hex2short-safe.json',
+	);
 
 	/**
 	 * Stash a reference to the controller on each instantiation
@@ -37,12 +45,8 @@ Class CSSCompression_Color
 		$this->options = &$control->Option->options;
 
 		if ( ! self::$color2hex ) {
-			if ( ( self::$color2hex = CSSCompression::getJSON( 'long2hex-colors.json' ) ) instanceof Exception ) {
-				throw self::$color2hex;
-			}
-
-			if ( ( self::$hex2short = CSSCompression::getJSON( 'hex2short-colors.json' ) ) instanceof Exception ) {
-				throw self::$hex2short;
+			foreach ( self::$files as $v => $file ) {
+				self::$$v = CSSCompression::getJSON( $file );
 			}
 		}
 	}
@@ -63,19 +67,24 @@ Class CSSCompression_Color
 			$val = $this->color2hex( $val );
 		}
 
-		// Convert large hex codes to small codes
-		if ( $this->options['color-hex2shorthex'] ) {
-			$val = $this->hex2short( $val );
-		}
-
 		// Ensure all hex codes are lowercase
 		if ( preg_match( $this->rhex, $val ) ) {
 			$val = strtolower( $val );
 		}
 
+		// Convert large hex codes to small codes
+		if ( $this->options['color-hex2shorthex'] ) {
+			$val = $this->hex2short( $val );
+		}
+
 		// Convert 6 digit hex codes to short color names
 		if ( $this->options['color-hex2shortcolor'] ) {
 			$val = $this->hex2color( $val );
+		}
+
+		// Convert safe css level1 color names
+		if ( $this->options['color-hex2safe'] ) {
+			$val = $this->hex2safe( $val );
 		}
 
 		return $val;
@@ -137,15 +146,6 @@ Class CSSCompression_Color
 	/**
 	 * Convert large hex codes to small codes
 	 *
-	 * @param (string) val: Color to be converted
-	 */
-	private function hex2color( $val ) {
-		return isset( self::$hex2short[ $val ] ) ? self::$hex2short[ $val ] : $val;
-	}
-
-	/**
-	 * Convert large hex codes to small codes
-	 *
 	 * @param (string) val: Hex to be shortened
 	 */
 	private function hex2short( $val ) {
@@ -163,6 +163,24 @@ Class CSSCompression_Color
 	}
 
 	/**
+	 * Convert large hex codes to small codes
+	 *
+	 * @param (string) val: Color to be converted
+	 */
+	private function hex2color( $val ) {
+		return isset( self::$hex2short[ $val ] ) ? self::$hex2short[ $val ] : $val;
+	}
+
+	/**
+	 * Convert large hex codes to small codes
+	 *
+	 * @param (string) val: Color to be converted
+	 */
+	private function hex2safe( $val ) {
+		return isset( self::$hex2short_safe[ $val ] ) ? self::$hex2short_safe[ $val ] : $val;
+	}
+
+	/**
 	 * Access to private methods for testing
 	 *
 	 * @param (string) method: Method to be called
@@ -173,7 +191,7 @@ Class CSSCompression_Color
 			return call_user_func_array( array( $this, $method ), $args );
 		}
 		else {
-			throw new Exception( "Unknown method in Color Class - " . $method );
+			throw new CSSCompression_Exception( "Unknown method in Color Class - " . $method );
 		}
 	}
 };

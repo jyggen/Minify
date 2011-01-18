@@ -14,7 +14,7 @@ require 'minify/JSMin.class.php';
 require 'minify/CSSCompression.php';
 
 class minify {
-    
+
     /* minify vars */
     protected $options;
     protected $posteriority;
@@ -27,14 +27,14 @@ class minify {
     protected $merge_path;
     protected $path_pattern;
     protected $all_files;
-    
+
     public $links = array();
-    
+
     /* debug vars */
     private $start;
     private $stop;
     private $debug_output = '';
-	
+
 	/* when Minify is initiated */
     public function __construct() {
         
@@ -44,18 +44,18 @@ class minify {
         $this->reset();
 
 	}
-	
+
 	/* when Minify is closed */
 	public function __destruct() {
-		
+
 		/* if debug is enabled output lots of data collected during runtime */
-		if($this->options['debug']) {
+		if($this->options['debug'] === true) {
 		
 			print '<pre>' . $this->debug_output;
 		
 			$this->stop = microtime(true);
             $res = $this->stop - $this->start;
-            
+			            
             print "\n" . 'Execution Time: ' . round($res, 6) . '</pre>';
 			
 		}
@@ -76,30 +76,16 @@ class minify {
 		$this->get_merge_path();
 		$this->get_path_pattern();
 		
-		/* compress everything if options->cache doesn't exists */
-		if(!file_exists($this->options['directory'] . $this->options['cache'])) {
-			
-			$this->debug('Status: Couldn\'t find ' . $this->options['cache'] . '.', true);
-			$this->compress();				
-			$this->save();
-			$this->generate_hash_file();
 		
-        /* compress and merge everything if options->merge is true and merge_path doesn't exist */
-        } elseif($this->options['merge'] == true && !file_exists($this->merge_path)) {
-        	
-        	$this->debug('Status: Couldn\'t find ' . $this->merge_path . '.', true);
+		if((!file_exists($this->options['directory'] . $this->options['cache'])) ||  // options->cache doesn't exists
+			($this->options['merge'] === TRUE && !file_exists($this->merge_path)) || // options->merge is true and merge_path doesn't exist
+			!$this->compare()) {								    				 // files and hashes don't match
+		
 			$this->compress();
 			$this->save();
 			$this->generate_hash_file();
-		
-		/* compress everything if files and hashes don't match */
-		} elseif(!$this->compare()) {
-			
-			$this->debug('Status: Files don\'t match.', true);
-			$this->compress();
-			$this->save();
-			$this->generate_hash_file();
-		
+			$this->debug('Status: Something is wrong!', true);
+
 		/* roll with our existing files */
 		} else {
 		
@@ -171,7 +157,7 @@ class minify {
     /* save $output for later use. $linebreak will add a new line in front of $output */
     private function debug($output, $linebreak = false) {
     	
-    	if($this->options['debug'] == true) {
+    	if($this->options['debug'] === TRUE) {
     		
     		if($linebreak)
     			$this->debug_output .= "\n";
@@ -184,9 +170,9 @@ class minify {
     		} else
     			$this->debug_output .= $output . "\n";
     		
-    		return true;
+    		return TRUE;
     	
-    	} else return false;
+    	} else return FALSE;
     
     }
     

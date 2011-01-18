@@ -4,20 +4,39 @@
  * [DATE]
  * Corey Hart @ http://www.codenothing.com
  */ 
-error_reporting( E_ALL );
 
-// Controller handles all subclass loading
+// Static dependencies, Subclasses loaded ondemand
+require( dirname(__FILE__) . '/lib/Exception.php' );
 require( dirname(__FILE__) . '/lib/Control.php' );
 
 
 Class CSSCompression
 {
 	/**
+	 * CSSCompression Info
+	 *
+	 * @const (string) VERSION: Release version
+	 * @const (string) DATE: Release date
+	 */
+	const VERSION = "[VERSION]";
+	const DATE = "[DATE]";
+
+	/**
 	 * WARNING: This should ALWAYS BE FALSE in production
 	 * When DEV is true, backdoor access to private methods is opened.
 	 * Only used for unit testing and development.
 	 */
-	const DEV = false;
+	const DEV = true;
+
+	/**
+	 * TOKEN is a special string that gets used as a marker within
+	 * the compressor, and is removed before final output. Make sure
+	 * this token is unique to your stylsheets.
+	 *
+	 * NOTE: This string gets used in regular expressions, and escaping
+	 * won't help, so don't pick a complicated token.
+	 */
+	const TOKEN = "@____CSSCOMPRESSION_TOKEN____@";
 
 	/**
 	 * The default set of options for every instance.
@@ -39,6 +58,10 @@ Class CSSCompression
 		// (#44ff11 -> #4f1)
 		'color-hex2shorthex' => true,
 
+		// Converts hex codes to safe CSS Level 1 color names
+		// (#F00 -> red)
+		'color-hex2safe' => true,
+
 		// Converts font-weight names to numbers
 		// (bold -> 700)
 		'fontweight2num' => true,
@@ -51,9 +74,17 @@ Class CSSCompression
 		// (BODY -> body)
 		'lowercase-selectors' => true,
 
-		// Add space after pseduo selectors, for ie6
+		// Converts id and class attribute selectors, to their short selector counterpart
+		// (div[id=blah][class=moreblah] -> div#blah.moreblah)
+		'attr2selector' => true,
+
+		// Promotes nested id's to the front of the selector
+		// (body>div#elem p -> $elem p)
+		'strict-id' => false,
+
+		// Add space after pseudo selectors, for ie6
 		// (a:first-child{ -> a:first-child {)
-		'pseduo-space' => false,
+		'pseudo-space' => false,
 
 		// Compresses single defined multi-directional properties
 		// (margin: 15px 25px 15px 25px -> margin:15px 25px)
@@ -92,12 +123,73 @@ Class CSSCompression
 		// (list-style-type: round; list-style-position: outside -> list-style:round outside)
 		'list-combine' => true,
 
+		// Combines border-radius properties
+		// {
+		//  border-top-left-radius: 10px;
+		//  border-top-right-radius: 10px;
+		//  border-bottom-right-radius: 10px;
+		//  border-bottom-left-radius: 10px;
+		// }
+		// -> { border-radius: 10px; }
+		'border-radius-combine' => true,
+
 		// Removes the last semicolon of a property set
 		// ({margin: 2px; color: blue;} -> {margin: 2px; color: blue})
 		'unnecessary-semicolons' => true,
 
+		// Removes multiple declarations within the same rule set
+		'rm-multi-define' => true,
+
+		// Adds all unknown blocks to the top of the output in a comment strip
+		// Purely for bug reporting, but also useful to know what isn't being handled
+		'add-unknown' => true,
+
 		// Readibility of Compressed Output, Defaults to none
 		'readability' => 0,
+	);
+
+	/**
+	 * Modes are predefined sets of configuration for referencing. When creating a mode, all options are set to true,
+	 * and the mode array defines which options are to be false
+	 *
+	 * @mode safe: Safe mode does zero combinations or organizing. It's the best mode if you use a lot of hacks
+	 * @mode sane: Sane mode does most combinations(multiple long hand notations to single shorthand),
+	 * --- but still keeps most declarations in their place
+	 * @mode small: Small mode reorganizes the whole sheet, combines as much as it can, and will break most comment hacks
+	 * @mode full: Full mode does everything small does, but also converts hex codes to their short color name alternatives
+	 */
+	private static $modes = array(
+		'safe' => array(
+			'color-hex2shortcolor' => false,
+			'attr2selector' => false,
+			'strict-id' => false,
+			'organize' => false,
+			'csw-combine' => false,
+			'auralcp-combine' => false,
+			'mp-combine' => false,
+			'border-combine' => false,
+			'font-combine' => false,
+			'background-combine' => false,
+			'list-combine' => false,
+			'border-radius-combine' => false,
+			'rm-multi-define' => false,
+		),
+		'sane' => array(
+			'color-hex2shortcolor' => false,
+			'strict-id' => false,
+			'organize' => false,
+			'font-combine' => false,
+			'background-combine' => false,
+			'list-combine' => false,
+			'rm-multi-define' => false,
+		),
+		'small' => array(
+			'color-hex2shortcolor' => false,
+			'pseudo-space' => false,
+		),
+		'full' => array(
+			'pseudo-space' => false,
+		),
 	);
 
 	/**
@@ -114,30 +206,29 @@ Class CSSCompression
 	const READ_NONE = 0;
 
 	/**
-	 * Modes are predefined sets of configuration for referencing
-	 * When creating a mode, all options are set to true, and the mode array
-	 * defines which options are to be false
+	 * Static Helpers
 	 *
-	 * @mode safe: Keeps selector and detail order, and prevents hex to shortname conversion
-	 * @mode medium: Prevents hex to shortname conversion
-	 * @mode small: Full compression
+	 * @instance express: Use a separate instance from singleton access 
+	 * @instance instance: Saved instance of CSSCompression
+	 * @param (array) instances: Array of stored instances
+	 * @param (array) rjson: Comment removal before json decoding
 	 */
-	public static $modes = array(
-		'safe' => array(
-			'color-hex2shortcolor' => false,
-			'orgainze' => false,
+	private static $express;
+	private static $instance;
+	private static $instances = array();
+	private static $rjson = array(
+		'patterns' => array(
+			"/^(.*?){/s", 
+			"/(\t|\s)+\/\/.*/",
 		),
-		'medium' => array(
-			'color-hex2shortcolor' => false,
-			'pseduo-space' => false
-		),
-		'small' => array(
-			'pseduo-space' => false
+		'replacements' => array(
+			'{',
+			'',
 		),
 	);
 
 	/**
-	 * Controller of all subclasses
+	 * Controller Instance
 	 */
 	private $Control;
 
@@ -153,11 +244,11 @@ Class CSSCompression
 		// Autorun against css passed
 		if ( $css ) {
 			// Allow passing options/mode only
-			if ( is_array( $css ) || ( strlen( $css ) < 15 && array_key_exists( $css, self::$modes ) ) ) {
-				$this->Control->Option->merge( $options );
+			if ( is_array( $css ) || array_key_exists( $css, self::$modes ) ) {
+				$this->Control->Option->merge( $css );
 			}
 			else {
-				$this->css = $this->Control->compress( $css, $options );
+				$this->Control->compress( $css, $options );
 			}
 		}
 		// Merge passed options
@@ -184,7 +275,7 @@ Class CSSCompression
 	 * access to setting values in the options array
 	 *
 	 * @param (string) name: Key name of the option you want to set
-	 * @param (any) value: Value of the option you want to set
+	 * @param (mixed) value: Value of the option you want to set
 	 */ 
 	public function __set( $name, $value ) {
 		return $this->Control->set( $name, $value );
@@ -200,25 +291,46 @@ Class CSSCompression
 	}
 
 	/**
+	 * Creates a new mode, or overwrites existing mode
+	 *
+	 * @param (mixed) mode: Name of the mode, or array of modes
+	 * @param (array) config: Configuration of the mode
+	 */
+	public static function modes( $mode = NULL, $config = NULL ) {
+		if ( $mode === NULL ) {
+			return self::$modes;
+		}
+		else if ( is_array( $mode ) ) {
+			return array_merge( self::$modes, $mode );
+		}
+		else if ( $config === NULL ) {
+			return isset( self::$modes[ $mode ] ) ? self::$modes[ $mode ] : NULL;
+		}
+		else {
+			return self::$modes[ $mode ] = $config;
+		}
+	}
+
+	/**
 	 * (Proxy function) Maintainable access to the options array
 	 *
 	 *	- Passing no arguments returns the entire options array
 	 *	- Passing a single name argument returns the value for the option
-	 * 	- Passing both a name and value, sets the value to the name key, and returns the value
 	 *	- Passing an array will merge the options with the array passed, for object like extension
+	 * 	- Passing both a name and value, sets the value to the name key, and returns the value
 	 *
-	 * @param (string|array) name: The key name of the option
-	 * @param (any) value: Value to set the option
+	 * @param (mixed) name: The key name of the option
+	 * @param (mixed) value: Value to set the option
 	 */
 	public function option( $name = NULL, $value = NULL ) {
 		return $this->Control->Option->option( $name, $value );
 	}
 
 	/**
-	 * (Proxy function) Run compression on the sheet passed
+	 * (Proxy function) Run compression on the sheet passed.
 	 *
 	 * @param (string) css: Stylesheet to be compressed
-	 * @param (array|string) options: Array of options or mode to use.
+	 * @param (mixed) options: Array of options or mode to use.
 	 */
 	public function compress( $css = NULL, $options = NULL ) {
 		return $this->Control->compress( $css, $options );
@@ -227,37 +339,50 @@ Class CSSCompression
 	/**
 	 * Static access for direct compression
 	 *
-	 * @instance expressi: Use a separate instance from singleton access 
 	 * @param (string) css: Stylesheet to be compressed
-	 * @param (array|string) options: Array of options or mode to use.
+	 * @param (mixed) options: Array of options or mode to use.
 	 */
-	private static $expressi;
 	public static function express( $css = NULL, $options = NULL ) {
-		if ( ! self::$expressi ) {
-			self::$expressi = new CSSCompression();
+		if ( ! self::$express ) {
+			self::$express = new CSSCompression();
 		}
 
-		self::$expressi->reset();
-		return self::$expressi->compress( $css, $options );
+		self::$express->reset();
+		return self::$express->compress( $css, $options );
 	}
 
 	/**
-	 * Cleans out compressor and it's subclasses to defaults
+	 * (Proxy Function) Cleans out compressor and it's subclasses to defaults
 	 *
 	 * @params none
 	 */
 	public function reset(){
-		$this->Control->reset();
+		return $this->Control->reset();
+	}
+
+	/**
+	 * (Proxy Function) Cleans out class variables for next run
+	 *
+	 * @params none
+	 */
+	public function flush(){
+		return $this->Control->flush();
 	}
 
 	/**
 	 * The Singleton access method (for those that want it)
 	 *
-	 * @instance instance: Saved instance of CSSCompression
+	 * @param (string) name: Name of the stored instance
 	 */
-	private static $instance;
-	public static function getInstance(){
-		if ( ! self::$instance ) {
+	public static function getInstance( $name = NULL ) {
+		if ( $name !== NULL ) {
+			if ( ! isset( self::$instances[ $name ] ) ) {
+				self::$instances[ $name ] = new self;
+			}
+
+			return self::$instances[ $name ];
+		}
+		else if ( ! self::$instance ) {
 			self::$instance = new self;
 		}
 
@@ -274,41 +399,40 @@ Class CSSCompression
 		$file = $file[ 0 ] == '/' ? $file : dirname(__FILE__) . '/helpers/' . $file;
 
 		// Strip comments
-		$json = preg_replace(
-			array( "/\/\*(.*?)\*\//s", "/(\t|\s)+\/\/.*/" ),
-			array( '', '' ),
-			file_get_contents( $file )
-		);
+		$json = preg_replace( self::$rjson['patterns'], self::$rjson['replacements'], file_get_contents( $file ) );
 
 		// Decode json
 		$json = json_decode( $json, true );
 
 		// Check for errors
 		if ( $json === NULL ) {
+			$e = '';
 			// JSON Errors, taken directly from http://php.net/manual/en/function.json-last-error.php
 			switch( json_last_error() ) {
 				case JSON_ERROR_NONE:
-					$json = new Exception( 'JSON Error - No error has occurred' );
+					$e = 'No error has occurred';
 					break;
 				case JSON_ERROR_DEPTH:
-					$json = new Exception( 'JSON Error - The maximum stack depth has been exceeded' );
+					$e = 'The maximum stack depth has been exceeded';
 					break;
 				case JSON_ERROR_CTRL_CHAR:
-					$json = new Exception( 'JSON Error - Control character error, possibly incorrectly encoded' );
+					$e = 'Control character error, possibly incorrectly encoded';
 					break;
 				case JSON_ERROR_STATE_MISMATCH:
-					$json = new Exception( 'JSON Error - Invalid or malformed JSON' );
+					$e = 'Invalid or malformed JSON';
 					break;
 				case JSON_ERROR_SYNTAX:
-					$json = new Exception( 'JSON Error - Syntax error' );
+					$e = 'Syntax error';
 					break;
 				case JSON_ERROR_UTF8:
-					$json = new Exception( 'JSON Error - Malformed UTF-8 characters, possibly incorrectly encoded' );
+					$e = 'Malformed UTF-8 characters, possibly incorrectly encoded';
 					break;
 				default:
-					$json = new Exception( 'Unknown JSON Error' );
+					$e = 'Unknown JSON Error';
 					break;
 			}
+
+			throw new CSSCompression_Exception( "JSON Error in $file: $e" );
 		}
 
 		// Good to go
@@ -325,13 +449,13 @@ Class CSSCompression
 	 */
 	public function access( $class = NULL, $method = NULL, $args = NULL ) {
 		if ( ! self::DEV ) {
-			throw new Exception( "CSSCompression is not in development mode." );
+			throw new CSSCompression_Exception( "CSSCompression is not in development mode." );
 		}
 		else if ( $class === NULL || $method === NULL || $args === NULL ) {
-			throw new Exception( "Invalid Access Call." );
+			throw new CSSCompression_Exception( "Invalid Access Call." );
 		}
 		else if ( ! is_array( $args ) ) {
-			throw new Exception( "Expecting array of arguments." );
+			throw new CSSCompression_Exception( "Expecting array of arguments." );
 		}
 
 		return $this->Control->access( $class, $method, $args );

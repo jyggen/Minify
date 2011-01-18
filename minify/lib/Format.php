@@ -11,12 +11,14 @@ Class CSSCompression_Format
 	 * Format Patterns
 	 *
 	 * @class Control: Compression Controller
+	 * @param (string) token: Copy of the injection token
 	 * @param (array) options: Reference to options
 	 * @param (regex) rsemicolon: Checks for semicolon without an escape '\' character before it
 	 * @param (regex) rcolon: Checks for colon without an escape '\' character before it
 	 * @param (array) readability: Mapping to readability functions
 	 */
 	private $Control;
+	private $token = '';
 	private $options = array();
 	private $rsemicolon = "/(?<!\\\);/";
 	private $rcolon = "/(?<!\\\):/";
@@ -34,6 +36,7 @@ Class CSSCompression_Format
 	 */
 	public function __construct( CSSCompression_Control $control ) {
 		$this->Control = $control;
+		$this->token = CSSCompression::TOKEN;
 		$this->options = &$control->Option->options;
 	}
 
@@ -42,9 +45,8 @@ Class CSSCompression_Format
 	 * Reformats compressed CSS into specified format
 	 *
 	 * @param (int) readability: Readability level of compressed output
-	 * @param (string) import: CSS Import property removed at beginning
 	 * @param (array) selectors: Array of selectors
-	 * @param (array) details: Array of details
+	 * @param (array) details: Array of declarations
 	 */ 
 	public function readability( $readability = CSSCompression::READ_NONE, $selectors = array(), $details = array() ) {
 		if ( isset( $this->readability[ $readability ] ) ) {
@@ -59,14 +61,18 @@ Class CSSCompression_Format
 	/**
 	 * Returns maxium readability, breaking on every selector, brace, and property
 	 *
-	 * @param (string) import: CSS Import property removed at beginning
 	 * @param (array) selectors: Array of selectors
-	 * @param (array) details: Array of details
+	 * @param (array) details: Array of declarations
 	 */ 
 	private function maximum( $selectors, $details ) {
 		$css = '';
 		foreach ( $selectors as $k => $v ) {
-			if ( ! $details[ $k ] || trim( $details[ $k ] ) == '' ) {
+			if ( strpos( $v, $this->token ) === 0 ) {
+				$css .= substr( $v, strlen( $this->token ) );
+				$css .= $details[ $k ];
+				continue;
+			}
+			else if ( ! $details[ $k ] || trim( $details[ $k ] ) == '' ) {
 				continue;
 			}
 
@@ -97,16 +103,20 @@ Class CSSCompression_Format
 	}
 
 	/**
-	 * Returns medium readability, putting selectors and details on new lines
+	 * Returns medium readability, putting selectors and rule sets on new lines
 	 *
-	 * @param (string) import: CSS Import property removed at beginning
 	 * @param (array) selectors: Array of selectors
-	 * @param (array) details: Array of details
+	 * @param (array) details: Array of declarations
 	 */ 
 	private function medium( $selectors, $details ) {
 		$css = '';
 		foreach ( $selectors as $k => $v ) {
-			if ( $details[ $k ] && $details[ $k ] != '' ) {
+			if ( strpos( $v, $this->token ) === 0 ) {
+				$css .= substr( $v, strlen( $this->token ) );
+				$css .= $details[ $k ];
+				continue;
+			}
+			else if ( $details[ $k ] && $details[ $k ] != '' ) {
 				$css .= "$v {\n\t" . $details[ $k ] . "\n}\n";
 			}
 		}
@@ -115,16 +125,20 @@ Class CSSCompression_Format
 	}
 
 	/**
-	 * Returns minimum readability, breaking after every selector and it's details
+	 * Returns minimum readability, breaking after every selector and it's rule set
 	 *
-	 * @param (string) import: CSS Import property removed at beginning
 	 * @param (array) selectors: Array of selectors
-	 * @param (array) details: Array of details
+	 * @param (array) details: Array of declarations
 	 */ 
 	private function minimum( $selectors, $details ) {
 		$css = '';
 		foreach ( $selectors as $k => $v ) {
-			if ( $details[ $k ] && $details[ $k ] != '' ) {
+			if ( strpos( $v, $this->token ) === 0 ) {
+				$css .= substr( $v, strlen( $this->token ) );
+				$css .= $details[ $k ];
+				continue;
+			}
+			else if ( $details[ $k ] && $details[ $k ] != '' ) {
 				$css .= "$v{" . $details[ $k ] . "}\n";
 			}
 		}
@@ -136,30 +150,22 @@ Class CSSCompression_Format
 	 * Returns an unreadable, but fully compressed script
 	 *
 	 * @param (array) selectors: Array of selectors
-	 * @param (array) details: Array of details
+	 * @param (array) details: Array of declarations
 	 */ 
 	private function none( $selectors, $details ) {
 		$css = '';
 		foreach ( $selectors as $k => $v ) {
-			if ( isset( $details[ $k ] ) && $details[ $k ] != '' ) {
+			if ( strpos( $v, $this->token ) === 0 ) {
+				$css .= substr( $v, strlen( $this->token ) );
+				$css .= $details[ $k ];
+				continue;
+			}
+			else if ( $details[ $k ] && $details[ $k ] != '' ) {
 				$css .= trim( "$v{" . $details[ $k ] . "}" );
 			}
 		}
 
 		return $css;
-	}
-
-	/**
-	 * Byte format return of file sizes
-	 *
-	 * @param (int) size: File size in Bytes
-	 */ 
-	public function size( $size = 0 ) {
-		$ext = array( 'B', 'K', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB' );
-		for( $c = 0; $size > 1024; $c++ ) {
-			$size /= 1024;
-		}
-		return round( $size, 2 ) . $ext[ $c ];
 	}
 
 	/**
@@ -173,7 +179,7 @@ Class CSSCompression_Format
 			return call_user_func_array( array( $this, $method ), $args );
 		}
 		else {
-			throw new Exception( "Unknown method in Color Class - " . $method );
+			throw new CSSCompression_Exception( "Unknown method in Format Class - " . $method );
 		}
 	}
 };

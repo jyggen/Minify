@@ -13,14 +13,14 @@ Class CSSCompression_Numeric
 	 * @class Control: Compression Controller
 	 * @param (array) options: Reference to options
 	 * @param (regex) rdecimal: Checks for zero decimal
-	 * @param (regex) runit: Checks for suffix on 0 unit
 	 * @param (regex) rzero: Checks for preceding 0 to decimal unit
+	 * @param (regex) runit: Checks for suffix on 0 unit
 	 */
 	private $Control;
 	private $options = array();
-	private $rdecimal = "/^(\d+\.0*)(\%|[a-z]{2})$/i";
+	private $rdecimal = "/^(\+|\-)?(\d*\.[1-9]*0*)(\%|[a-z]{2})$/i";
+	private $rzero = "/^(\+|\-)?0(\.\d+)(\%|[a-z]{2})?$/i";
 	private $runit = "/^0(\%|[a-z]{2})$/i";
-	private $rzero = "/^0(\.\d+)(\%|[a-z]{2})?$/i";
 
 	/**
 	 * Stash a reference to the controller on each instantiation
@@ -39,8 +39,8 @@ Class CSSCompression_Numeric
 	 */
 	public function numeric( $str ) {
 		$str = $this->decimal( $str );
-		$str = $this->units( $str );
 		$str = $this->zeroes( $str );
+		$str = $this->units( $str );
 		return $str;
 	}
 
@@ -51,7 +51,7 @@ Class CSSCompression_Numeric
 	 */ 
 	private function decimal( $str ) {
 		if ( preg_match( $this->rdecimal, $str, $match ) ) {
-			$str = intval( $match[ 1 ] ) . $match[ 2 ];
+			$str = ( $match[ 1 ] == '-' ? '-' : '' ) . floatval( $match[ 2 ] ) . $match[ 3 ];
 		}
 
 		return $str;
@@ -78,7 +78,7 @@ Class CSSCompression_Numeric
 	 */
 	private function zeroes( $str ) {
 		if ( preg_match( $this->rzero, $str, $match ) ) {
-			$str = $match[ 1 ] . ( isset( $match[ 2 ] ) ? $match[ 2 ] : '' );
+			$str = ( isset( $match[ 1 ] ) && $match[ 1 ] == '-' ? '-' : '' ) . $match[ 2 ] . ( isset( $match[ 3 ] ) ? $match[ 3 ] : '' );
 		}
 
 		return $str;
@@ -95,7 +95,7 @@ Class CSSCompression_Numeric
 			return call_user_func_array( array( $this, $method ), $args );
 		}
 		else {
-			throw new Exception( "Unknown method in Color Class - " . $method );
+			throw new CSSCompression_Exception( "Unknown method in Numeric Class - " . $method );
 		}
 	}
 };

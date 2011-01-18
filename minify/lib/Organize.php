@@ -13,11 +13,12 @@ Class CSSCompression_Organize
 	 * @class Control: Compression Controller
 	 * @param (array) options: Reference to options
 	 * @param (regex) rsemicolon: Checks for semicolon without an escape '\' character before it
+	 * @param (regex) rlastsemi: Checks for semicolon at the end of the string
 	 */
 	private $Control;
 	private $options = array();
 	private $rsemicolon = "/(?<!\\\);/";
-	private $rlastsemi = "/;$/";
+	private $rlastsemi = "/(?<!\\\);$/";
 
 	/**
 	 * Stash a reference to the controller on each instantiation
@@ -34,9 +35,9 @@ Class CSSCompression_Organize
 	 * of definitions.
 	 *
 	 * @param (array) selectors: Array of selectors, map directly to details
-	 * @param (array) details: Array of details, map directly to selectors
+	 * @param (array) details: Array of rule sets, map directly to selectors
 	 */
-	public function organize( $selectors = array(), $details = array() ) {
+	public function organize( &$selectors = array(), &$details = array() ) {
 		// Combining defns based on similar selectors
 		list ( $selectors, $details ) = $this->reduceSelectors( $selectors, $details );
 
@@ -48,14 +49,16 @@ Class CSSCompression_Organize
 	}
 
 	/**
-	 * Combines multiply defined selectors by merging the definitions,
-	 * latter definitions overide definitions at top of file
+	 * Combines multiply defined selectors by merging the rule sets,
+	 * latter declarations overide declaratins at top of file
 	 *
 	 * @param (array) selectors: Array of selectors broken down by setup
-	 * @param (array) details: Array of details broken down by setup
+	 * @param (array) details: Array of rule sets broken down by setup
 	 */ 
 	private function reduceSelectors( $selectors, $details ) {
-		$max = array_pop( array_keys( $selectors ) ) + 1;
+		$keys = array_keys( $selectors );
+		$max = array_pop( $keys ) + 1;
+		
 		for ( $i = 0; $i < $max; $i++ ) {
 			if ( ! isset( $selectors[ $i ] ) ) {
 				continue;
@@ -93,14 +96,15 @@ Class CSSCompression_Organize
 	}
 
 	/**
-	 * Combines multiply defined details by merging the selectors
+	 * Combines multiply defined rule sets by merging the selectors
 	 * in comma seperated format
 	 *
 	 * @param (array) selectors: Array of selectors broken down by setup
-	 * @param (array) details: Array of details broken down by setup
+	 * @param (array) details: Array of rule sets broken down by setup
 	 */ 
 	private function reduceDetails( $selectors, $details ) {
-		$max = array_pop( array_keys( $selectors ) ) + 1;
+		$keys = array_keys( $selectors );
+		$max = array_pop( $keys ) + 1;
 		for ( $i = 0; $i < $max; $i++ ) {
 			if ( ! isset( $selectors[ $i ] ) ) {
 				continue;
@@ -137,7 +141,7 @@ Class CSSCompression_Organize
 			return call_user_func_array( array( $this, $method ), $args );
 		}
 		else {
-			throw new Exception( "Unknown method in Color Class - " . $method );
+			throw new CSSCompression_Exception( "Unknown method in Organize Class - " . $method );
 		}
 	}
 };

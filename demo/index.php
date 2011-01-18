@@ -8,7 +8,7 @@ $minify = new Minify();
 $minify->set('debug', true);
 $minify->set('type', 'css');
 $minify->set('directory', 'css/');
-$minify->set('merge', true);
+$minify->set('merge', false);
 
 $minify->run();
 $minify->reset();
@@ -16,7 +16,7 @@ $minify->reset();
 $minify->set('debug', true);
 $minify->set('type', 'js');
 $minify->set('directory', 'js/');
-$minify->set('merge', true);
+$minify->set('merge', false);
 
 $minify->run();
 ?>
@@ -29,7 +29,7 @@ $minify->run();
 	<body>
 	<?php
 	foreach($minify->links as $link) {
-		echo htmlentities($link) . '<br>';
+		echo '<pre>' . htmlentities($link) . '</pre>';
 	}
 	?>
 	</body>
