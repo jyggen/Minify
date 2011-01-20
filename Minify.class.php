@@ -10,7 +10,7 @@
  * http://www.codenothing.com/
  */
 
-require 'minify/JSMin.class.php';
+require 'minify/JSMin.php';
 require 'minify/CSSCompression.php';
 
 class minify {
@@ -401,8 +401,7 @@ class minify {
 				
 				switch($this->options['type']) {
 					case 'js':
-						$js   = new JSMin($code);
-						$code = trim($js->pack());
+						$code = trim(JSMin::minify($code));
 						break;
 					case 'css':
 						$css  = new CSSCompression();
@@ -423,8 +422,7 @@ class minify {
 				
 			switch($this->options['type']) {
 				case 'js':
-					$js   = new JSMin($code);
-					$code = trim($js->pack());
+					$code = trim(JSMin::minify($code));
 					break;
 				case 'css':
 					$css  = new CSSCompression();
