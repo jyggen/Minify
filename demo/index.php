@@ -4,19 +4,23 @@ error_reporting(E_ALL | E_STRICT);
 require '../Minify.class.php';
 
 $minify = new Minify();
-
+$minify->setType('css');
+$minify->setDirectory('css/');
 $minify->set('debug', true);
-$minify->set('type', 'css');
-$minify->set('directory', 'css/');
-$minify->set('merge', false);
 
-$minify->run();
-$minify->reset();
+for($i=1; $i<=10; $i++) {
+	
+	if($i < 10)
+		$i = '00'.$i;
+	elseif($i < 100)
+		$i = '0'.$i;
+	
+	if(in_array($i, array(108, 129, 183)))
+		break;
+	
+	$minify->addFile('http://www.csszengarden.com/' . $i . '/' . $i . '.css');
 
-$minify->set('debug', true);
-$minify->set('type', 'js');
-$minify->set('directory', 'js/');
-$minify->set('merge', false);
+}
 
 $minify->run();
 ?>
