@@ -441,7 +441,7 @@ class Minify {
 	
 	static protected function compressFiles() {
 		
-		@ini_set(max_execution_time, 120);
+		@ini_set('max_execution_time', 120);
 
 		self::$mincode['js']  = '';
 		self::$mincode['css'] = '';
