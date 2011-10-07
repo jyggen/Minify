@@ -86,6 +86,10 @@ class Minify {
 			
 			$file = self::$outputDir . self::$opt['minifyFile'] . '.js';
 			$hash = hash_file(self::$opt['algorithm'], $file);
+			
+			if(self::$opt['absolutePaths'])
+				$file = '/' . $file;
+			
 			$links .= '<script type="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
 			
 		}
@@ -94,6 +98,10 @@ class Minify {
 			
 			$file = self::$outputDir . self::$opt['minifyFile'] . '.css';
 			$hash = hash_file(self::$opt['algorithm'], $file);
+			
+			if(self::$opt['absolutePaths'])
+				$file = '/' . $file;
+			
 			$links .= '<link rel="stylesheet" type="text/css" media="screen" href="' . $file . '?' . $hash . '" />' . "\n";
 		
 		}
@@ -188,8 +196,7 @@ class Minify {
 			'cacheDir'      => 'minify/cache/',
 			'outputDir'     => 'assets/',
 			'minifyDir'     => 'minify/',
-			'debug'         => FALSE,
-			'absoultePaths' => TRUE,
+			'absolutePaths' => TRUE,
 			'allowedExts'   => array('js', 'css'),
 			'minifyFile'    => 'files.min',
 			'useLocalJS'    => FALSE
