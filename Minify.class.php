@@ -5,512 +5,548 @@
  *
  * CSS Compressor by Corey Hart
  * http://www.codenothing.com/
+ *
+ * Closure Compiler by Google
+ * http://closure-compiler.appspot.com/
+ *
  */
 
-class minify {
-
-    /* minify vars */
-    protected $options;
-    protected $posteriority;
-    protected $priority;
-    protected $ignore;
-    protected $allowed_types;
-    protected $files;
-    protected $hashes;
-    protected $code;
-    protected $merge_path;
-    protected $path_pattern;
-	protected $remote_files;
-    protected $all_files;
-
-    public $links = array();
-
-    /* debug vars */
-    private $start;
-    private $stop;
-    private $debug_output = '';
-
-	/* when Minify is initiated */
-    public function __construct() {
-        
-        $this->start = microtime(true);
-        
-        /* Reset everything to their default values */
-        $this->reset();
-
-	}
-
-	/* when Minify is closed */
-	public function __destruct() {
-
-		/* if debug is enabled output lots of data collected during runtime */
-		if($this->options['debug'] === true) {
-			
-			print '<style type="text/css">td { padding:0 35px 0 0; }</style>';
-			print '<pre>' . $this->debug_output;
-		
-			$this->stop = microtime(true);
-            $res = $this->stop - $this->start;
-			            
-            print "\n" . 'Execution Time: ' . round($res, 6);
-			print "\n" . 'Memory Usage (Avg): ' . round((memory_get_usage(true)/1000)/1000, 2) . ' MB';
-			print "\n" . 'Memory Usage (Peak): ' . round((memory_get_peak_usage(true)/1000)/1000, 2) . ' MB';
-			print '</pre>';
-			
-		}
+class Minify {
 	
-	}
+	static protected $opt           = array();
+	static protected $files         = array();
+	static protected $downloadQueue = array();
+	static protected $debugLog      = array();
+	static protected $cacheDir, $cssMode, $jsMode, $mincode, $outputDir;
 	
-	private function include_classes() {
+	static public function loadConfig($path) {
 		
-		require_once $this->options['min_dir'] . 'CSSCompression.class.php';
-		require_once $this->options['min_dir'] . 'curl.class.php';
+		$path = __DIR__ . '/' . $path;
 		
-	}
-	
-	/* Minify! */
-	public function run() {
+		if(!file_exists($path)) {
+		
+			trigger_error('Couldn\'t load configuration file from "' . $path . '"', E_USER_ERROR);
+			exit(1);
 
-        /* check if options->type is an allowed file type */
-        if(!in_array($this->options['type'], $this->allowed_types))
-			die(trigger_error($this->options['type'] . ' is not a valid file type', E_USER_ERROR));
-
-		$this->debug('Running Minify! in ' . strtoupper($this->options['type']) . ' mode with debugging enabled.', true);
-		
-		/* print options if we're in debug mode */
-		$this->debug('Options:', true);
-		$this->debug($this->options, false, true);
-		
-		/* generate merge_path */
-		$this->get_merge_path();	
-		$this->debug('Merge Path: ' . $this->merge_path, true);
-		
-		/* validate permissions */
-		$this->validate_permissions();
-		
-		/* validate files */
-		$this->validate_files();
-		
-		/* include required classes */
-		$this->include_classes();
-		
-		/* if we haven't cached a remote file, retrieve it! */
-		if(!empty($this->remote_files)) {
-			$this->download_files();
-		}
-
-		/* if the .sfv-file doesn't exist OR if the merge file doesn't exist OR if the files don't match */
-		if(!file_exists($this->options['directory'] . $this->options['cache']) ||
-		   !file_exists($this->merge_path) ||
-		   !$this->compare()) {
-
-			$this->compress();
-			$this->save();
-			$this->generate_hash_file();
-			$this->debug('Status: Something is wrong!', true);
-
-		/* roll with our existing files */
 		} else {
-
-			$this->debug('Status: Everything seems OK!', true);
+		
+			require_once $path;
+			self::$opt = array_merge(self::$opt, $options);
 		
 		}
+	
+	}
+	
+	static public function add($files) {
 		
-		/* fetch the html code for all files */
-		$this->get_links();
-
-		$this->debug('--------------------------------------', true);
-
-    }
-    
-	private function validate_permissions() {
-
-		if(!@is_writable($this->options['directory']) && !@chmod($this->options['directory'], 777))
-			die(trigger_error($this->options['directory'] . ' is not writable', E_USER_ERROR));
-			
-		if(!@is_writable($this->options['min_dir'].$this->options['cache_dir']) && !@chmod($this->options['min_dir'].$this->options['cache_dir'], 777))
-			die(trigger_error($this->options['min_dir'].$this->options['cache_dir'] . ' is not writable', E_USER_ERROR));
-
-	}
-	
-    /* set option $name to $value */
-    public function set($name, $value) {
-		$this->options[$name] = $value;
-  
-    }
-	
-	/* shortcut to set type */
-	public function setType($value) {
-		$this->set('type', $value);
-	}
-	
-	/* shortcut to set directory */
-	public function setDirectory($value) {
-		$this->set('directory', $value);
-	}
-	
-	public function addFile($files) {
 		if(is_array($files)) {
+		
 			foreach($files as $file) {
-				$this->files[]['path'] = $file;
+			
+				self::add($file);
+			
 			}
+		
 		} else {
-			$this->files[]['path'] = $files;
+		
+			self::$files[]['path'] = $files;
+		
 		}
+		
+	}
+
+	static public function run() {
+		
+		self::loadDefaultOpts();	
+		self::validateOutputDir();
+		self::validateCacheDir();
+		self::validateFiles();
+		self::includeClasses();
+		
+		if(!empty(self::$downloadQueue))
+			self::downloadFiles();
+			
+		self::detectMode();
+		
+		if(!self::evaluate()) {
+		
+			self::compressFiles();
+			self::saveFiles();
+			self::saveCacheFile();
+		
+		} else return;
+
 	}
 	
-	private function download_files() {
+	static public function getLinks() {
 		
-		if(!is_dir($this->options['min_dir'].$this->options['cache_dir'])) {
-			if(!mkdir($this->options['min_dir'].$this->options['cache_dir'])) {
-				die(trigger_error('Could not create cache dir.', E_USER_ERROR));
-			}
+		$links = '';
+		
+		if(self::$jsMode) {
+			
+			$file = self::$outputDir . self::$opt['minifyFile'] . '.js';
+			$hash = hash_file(self::$opt['algorithm'], $file);
+			$links .= '<script type="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
+			
 		}
 		
-		$opts = array(
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_FOLLOWLOCATION => true
-		);
+		if(self::$cssMode) {
+			
+			$file = self::$outputDir . self::$opt['minifyFile'] . '.css';
+			$hash = hash_file(self::$opt['algorithm'], $file);
+			$links .= '<link rel="stylesheet" type="text/css" media="screen" href="' . $file . '?' . $hash . '" />' . "\n";
+		
+		}
+		
+		return $links;
+	
+	}
+	
+	static public function printLinks() {
+		
+		echo self::getLinks();
+	
+	}
+	
+	static public function debug() {
+		
+		echo '<pre>';
+		
+		foreach(self::$debugLog as $log)
+			echo $log;
+		
+		echo '</pre>';
+		
+	}
+	
+	static protected function log($data, $eol = TRUE, $tab = 0) {
+		
+		$msg = '';
+		
+		for($i = 0; $i < $tab; $i++) {$msg .= "\t"; }
+		
+		$msg .= $data;
+		
+		if($eol) { $msg .= "\n"; }
 
-		foreach($this->remote_files as $key => $file)
+		self::$debugLog[] = $msg;
+	
+	}
+	
+	static protected function validateDir($dir) {
+
+		if(!is_dir($dir)) {
+		
+			trigger_error('"' . $dir . '" is not a valid directory', E_USER_ERROR);
+			exit(1);
+		
+		}
+		
+		if(!is_writable($dir)) {
+		
+			trigger_error('"' . $dir . '" is not writable', E_USER_ERROR);
+			exit(1);
+
+		}
+			
+		return true;
+			
+	}
+	
+	static protected function validateOpt($key) {
+		
+		if(!isset(self::$opt[$key]) OR empty(self::$opt[$key])) {
+		
+			trigger_error('Missing "' . $key . '" in configuration', E_USER_ERROR);
+			exit(1);
+		
+		} else return true;
+		
+	}
+	
+	static protected function getExt($name) {
+		
+		$info = pathinfo($name);
+		
+		return $info['extension'];
+		
+	}
+	
+	static protected function isAllowedExt($name) {
+		
+		$ext = self::getExt($name);
+		
+		return (in_array($ext, self::$opt['allowedExts']));
+		
+	}
+	
+	static protected function loadDefaultOpts() {
+		
+		$defaultOpts = array(
+			'algorithm'     => 'crc32b',
+			'cacheFile'     => 'minify.sfv',
+			'cacheDir'      => 'minify/cache/',
+			'outputDir'     => 'assets/',
+			'minifyDir'     => 'minify/',
+			'debug'         => FALSE,
+			'absoultePaths' => TRUE,
+			'allowedExts'   => array('js', 'css'),
+			'minifyFile'    => 'files.min',
+			'useLocalJS'    => FALSE
+		);
+		
+		self::$opt = self::$opt + $defaultOpts;
+
+	}
+	
+	static protected function validateOutputDir() {
+		
+		self::validateOpt('outputDir');
+		
+		self::$outputDir = self::$opt['outputDir'];
+		
+		return self::validateDir(self::$outputDir);
+		
+	}
+	
+	static protected function validateCacheDir() {
+
+		self::validateOpt('cacheDir');
+		
+		self::$cacheDir = __DIR__ . '/' . self::$opt['cacheDir'];
+		
+		return self::validateDir(self::$cacheDir);
+		
+	}
+	
+	static protected function includeClasses() {
+		
+		require_once self::$opt['minifyDir'] . 'CSSCompression.php';
+		require_once self::$opt['minifyDir'] . 'curl.class.php';
+		
+	}
+	
+	static protected function validateFiles() {
+		
+		self::log("\n" . 'validateFiles():');
+		
+		foreach(self::$files as $key => $file) {
+			
+			if(!self::isAllowedExt($file['path'])) {
+				
+				unset(self::$files[$key]);
+				trigger_error('skipping ' . basename($file['path']) . ' due to invalid file', E_USER_NOTICE);
+				
+			} else {
+
+				self::$files[$key]['ext'] = self::getExt($file['path']);
+				
+				if(preg_match('/((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:\/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU', $file['path'], $match)) {
+					
+					$src_path   = $file['path'];
+					$cache_path = self::$cacheDir . md5($file['path']);
+
+					if(file_exists($cache_path)) {
+	
+						self::$files[$key]['data'] = file_get_contents($cache_path);
+						self::$files[$key]['path'] = $cache_path;
+						self::$files[$key]['hash'] = hash(self::$opt['algorithm'], self::$files[$key]['data']);
+						self::log('Cache   : ' . basename($file['path']), TRUE, 1);
+
+					} else {
+						
+						self::$downloadQueue[$key] = $src_path;
+						self::log('Download: ' . basename($file['path']), TRUE, 1);
+						
+					}
+					
+				} else {
+
+					if(file_exists($file['path'])) {
+					
+						self::$files[$key]['data'] = file_get_contents($file['path']);
+						self::$files[$key]['hash'] = hash(self::$opt['algorithm'], self::$files[$key]['data']);
+						self::log('Found   : ' . basename($file['path']), TRUE, 1);
+
+					} else {
+						
+						unset(self::$files[$key]);
+						self::log('Invalid : ' . basename($file['path']), TRUE, 1);
+						trigger_error('skipping ' . basename($file['path']) . ' due to invalid file', E_USER_NOTICE);
+
+					}
+
+				}
+			
+			}
+			
+		}
+
+	}
+	
+	static protected function downloadFiles() {
+
+		foreach(self::$downloadQueue as $key => $file) {
+			
+			unset(self::$downloadQueue[$key]);
 			$urls[$key] = $file;
+			
+		}
 
 		$curl   = new CURLRequest();  
-		$return = $curl->getThreaded($urls, $opts, 10);
-		
-		$this->debug('Downloading Files:', true);
-		$this->debug('<table>');
+		$return = $curl->getThreaded($urls, array(
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_FOLLOWLOCATION => true
+		), 25);
+
 		foreach($return as $key => $data) {
 
-			$this->debug('<tr><td>- ' . $data['info']['url'] . '</td>');
 			if($data['info']['http_code'] != 200) {
-				
-				$this->debug('<td>Skip!</td>');
-				trigger_error($data['info']['url'] . ' returned ' . $data['info']['http_code'] . ' and was skipped', E_USER_NOTICE);
-				unset($this->files[$key]);
+
+				unset(self::$files[$key]);
+				trigger_error('skipping ' . basename($data['info']['url']) . ' due to download error (' . $data['info']['http_code'] . ')', E_USER_NOTICE);
 			
 			} else {
 				
-				$this->files[$key]['data'] = $data['content'];
-				$this->files[$key]['path'] = $this->options['min_dir'].$this->options['cache_dir'].md5($data['info']['url']);
-				$this->files[$key]['hash'] = hash($this->options['algorithm'], $this->files[$key]['data']);
-				file_put_contents($this->options['min_dir'].$this->options['cache_dir'].md5($data['info']['url']), $data['content']);
-				$this->debug('<td>OK!</td>');
+				$path = self::$cacheDir . md5($data['info']['url']);
+				
+				self::$files[$key]['data'] = $data['content'];
+				self::$files[$key]['path'] = $path;
+				self::$files[$key]['hash'] = hash(self::$opt['algorithm'], $data['content']);
+
+				file_put_contents($path, $data['content']);
 				
 			}
-			$this->debug('</tr>');
 			
 		}
-		$this->debug('</table>');
 		
 	}
 	
-	/* validate and retrive cache files */
-	private function validate_files() {
+	static protected function detectMode() {
+	
+		self::$jsMode = FALSE;
+		self::$cssMode = FALSE;
 		
-		$this->debug('Validating Files:', true);
-		$this->debug('<table style="border-collapse:collapse;">');
+		foreach(self::$files as $file) {
 		
-		foreach($this->files as $key => $file) {
-
-			if(preg_match('/((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:\/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU', $file['path'], $match)) {
-				
-				$src_path   = $file['path'];
-				$cache_path = $this->options['min_dir'].$this->options['cache_dir'].md5($file['path']);
-
-				if(file_exists($cache_path)) {
-					
-					$this->files[$key]['data'] = file_get_contents($cache_path);
-					$this->files[$key]['path'] = $cache_path;
-					$this->files[$key]['hash'] = hash($this->options['algorithm'], $this->files[$key]['data']);
-					$this->debug('<tr><td>- Cache:</td><td>' . $cache_path . '</td></tr>');
-				
-				} else {
-					
-					$this->remote_files[$key] = $src_path;
-					$this->debug('<tr><td>- Download:</td><td>' . $src_path . '</td></tr>');
-					
-				}
-				
-			} else {
-
-				if(file_exists($file['path'])) {
-					$this->files[$key]['data'] = file_get_contents($file['path']);
-					$this->files[$key]['hash'] = hash($this->options['algorithm'], $this->files[$key]['data']);
-					$this->debug('<tr><td>- Found:</td><td>' . $file['path'] . '</td></tr>');
-				} else {
-					unset($this->files[$key]);
-					$this->debug('<tr><td>- Invalid:</td><td>' . $file['path'] . '</td></tr>');
-				}
-
+			switch($file['ext']) {
+				case 'js':
+					self::$jsMode = TRUE;
+					break;
+				case 'css':
+					self::$cssMode = TRUE;
+					break;
 			}
-
+			
+			if(self::$jsMode !== FALSE && self::$cssMode !== FALSE)
+				break;
+		
 		}
-	
-		$this->debug('</table>', true);
 	
 	}
-    
-    /* reset everything to their default values */
-    public function reset() {
-
-		$this->options       = array();
-    	$this->posteriority  = array();
-    	$this->priority      = array();
-    	$this->ignore        = array();
-    	$this->allowed_types = array('css', 'js');
-    	$this->files		 = array();
-    	$this->hashes		 = array();
-    	$this->code			 = array();
-    	$this->merge_path	 = '';
-    	$this->path_pattern  = '';
-    	$this->all_files	 = array();
-
-		$this->options = array(
-			'algorithm'  => 'crc32b',
-			'cache'      => 'minify.sfv',
-			'cache_dir'  => 'cache/',
-			'debug'      => false,
-			'directory'  => '',
-			'absolute'   => true,
-			'name'       => 'files',
-			'prefix'     => false,
-			#'regex'      => '/^.*\.min\.(css|js)$/i',
-			'script_src' => '<script type="text/javascript" src="%s?%s"></script>' . "\n",
-			'style_link' => '<link rel="stylesheet" type="text/css" media="screen" href="%s?%s" />' . "\n",
-			'suffix'     => 'min',
-			'type'       => '',
-			'min_dir'    => __DIR__ . '/minify/',
-			'cache_ttl'		 => 604800
-		);
+	
+	static protected function evaluate() {
 		
-		ksort($this->options);
-
-    }
-    
-    /* save $output for later use. $linebreak will add a new line in front of $output */
-    private function debug($output, $linebreak = false, $print_key = false) {
-    	
-    	if($this->options['debug'] === TRUE) {
-    		
-    		if($linebreak)
-    			$this->debug_output .= "\n";
-    		
-    		if(is_array($output)) {
-				if($print_key) {
-					$this->debug_output .= '<table>';
-				}
-    			foreach($output as $key => $ent) {
-					if(!$print_key) {
-						$this->debug_output .= '- ' . $ent . "\n";
-					} else {
-						$this->debug_output .= '<tr><td>- ' . $key . ':</td><td>';
-						$this->debug_output .= (empty($ent)) ? '<i>undefined</i>' : htmlentities($ent);
-						$this->debug_output .= '</td>';
-					}
-				}
-				if($print_key) {
-					$this->debug_output .= '</table>';
-				}
-    		} else $this->debug_output .= $output . "\n";
-    		
-    		return TRUE;
-    	
-    	} else return FALSE;
-    
-    }
-    
-    /* generate the path and name of the merged file */
-    private function get_merge_path() {
+		self::log("\n" . 'evaluate():');
 		
-		if(empty($this->options['directory'])) {
-			trigger_error('missing option directory', E_USER_ERROR);
-			exit(1);
+		self::log('file_exists ' . self::$outputDir . self::$opt['cacheFile'], FALSE, 1);
+		if(!file_exists(self::$outputDir . self::$opt['cacheFile'])) {
+			
+			self::log(' ... FAIL!');
+			return false;
+			
 		}
-
-    	$this->merge_path = $this->options['directory'];
+		self::log(' ... OK!');
 		
-		if(!is_dir($this->merge_path)) {
-			trigger_error('invalid directory ' . $this->merge_path, E_USER_ERROR);
-			exit(1);
+		
+		if(self::$jsMode === TRUE) {
+			
+			self::log('file_exists ' . self::$outputDir . self::$opt['minifyFile'] . '.js', FALSE, 1);
+			if(!file_exists(self::$outputDir . self::$opt['minifyFile'] . '.js')) {
+			
+				self::log(' ... FAIL!');
+				return false;
+			}
+			self::log(' ... OK!');
+
 		}
-    	
-    	if($this->options['prefix'])
-    		$this->merge_path .= $this->options['prefix'] . '.';
-    	
-    	$this->merge_path .= $this->options['name'];
-    	
-    	if($this->options['suffix'])
-    		$this->merge_path .= '.' . $this->options['suffix'];
-    		
-		$this->merge_path .= '.' . $this->options['type'];
-
-		return true;
-    
-    }
-    
-    /* generate an array with html code for each file */
-    private function get_links() {
 		
-		$hash = hash_file($this->options['algorithm'], $this->merge_path);
-		
-		if($this->options['absolute'])
-			$path = '/' . $this->merge_path;
-		else
-			$path = $this->merge_path;
-		
-		switch($this->options['type']) {
-			case 'js':
-				array_push($this->links, sprintf($this->options['script_src'], $path, $hash));
-				break;
-			case 'css':
-				array_push($this->links, sprintf($this->options['style_link'], $path, $hash));
-				break;
+		if(self::$cssMode === TRUE) {
+			
+			self::log('file_exists ' . self::$outputDir . self::$opt['minifyFile'] . '.css', FALSE, 1);
+			if(!file_exists(self::$outputDir . self::$opt['minifyFile'] . '.css')) {
+				
+				self::log(' ... FAIL!');
+				return false;
+			
+			}
+			self::log(' ... OK!');
+			
 		}
-    
-    }
-
-    /* compare every file with the hashes in the cache file */
-    private function compare() {
 		
-        if($cache = file_get_contents($this->options['directory'] . $this->options['cache'])) {
-			$cache = explode("\n", $cache);
+        if($cache = file_get_contents(self::$outputDir . self::$opt['cacheFile'])) {
+
+			$cache  = explode("\n", $cache);
+			$hashes = array();
 
 			foreach($cache as $line) {
 
 				list($file, $hash) = explode(' ', $line);
-				$hashes[$file] = $hash;
+				$hashes[$file]     = $hash;
 
 			}
 
-			$this->debug('Compare:', true);
-
-			foreach($this->files as $k => $file) {
+			foreach(self::$files as $k => $file) {
+				
+				self::log('check ' . basename($file['path']), FALSE, 1);
 				
 				if(!array_key_exists($file['path'], $hashes)) {
-				
-					$this->debug('check' . "\t" . $file['path'] . "\t" . $file['hash'] . "\t" . 'FAIL!');
+					
+					self::log(' ... FAIL!');
 					return false;
-				
+					
 				}
 				
 				if($file['hash'] != $hashes[$file['path']]) {
-
-					$this->debug('check' . "\t" . $file['path'] . "\t" . $file['hash'] . "\t" . 'FAIL!');
-					return false;
 					
+					self::log(' ... FAIL!');
+					return false;
+				
 				}
 				
+				self::log(' ... OK!');
 				unset($hashes[$file['path']]);
-				$this->debug('check' . "\t" . $file['path'] . "\t" . $file['hash'] . "\t" . 'OK!');
 
 			}
 			
-			if(!empty($hashes))
+			if(!empty($hashes)) {
+				
+				foreach($hashes as $hash)
+					self::log('check ' . $hash . ' ... NOT FOUND!', TRUE, 1);
+				
 				return false;
-
-			return true;
+				
+			}
 			
 		} else return false;
-
-    }
-
-    /* compress the code in the files */
-    private function compress() {
-
-		$code = '';
 		
-		foreach($this->files as $file)
-			$code .= $file['data'];
-			
-		switch($this->options['type']) {
-			case 'js':
-			
-				/* if() { */ // In the future we should check if we're allowed to run closure-compiler locally.
-			
-					$curl = new CURLRequest();
-					$code = urlencode($code);
-					
-					if((strlen($code)/1000)/1000 > 1) {
-						trigger_error('Code too large and won\'t be allowed by the web service. Please limit the total size of your files to 1000 KB', E_USER_ERROR);
-						exit(1);
-					}
-
-					$return = $curl->get('http://closure-compiler.appspot.com/compile', array(
-						CURLOPT_RETURNTRANSFER => true, 
-						CURLOPT_POSTFIELDS     => 'js_code=' . $code . '&compilation_level=SIMPLE_OPTIMIZATIONS&output_format=json&output_info=errors&output_info=compiled_code',
-						CURLOPT_POST           => true
-					));
-					$data = json_decode($return['content'], true);
-					if(isset($data['errors'])) {
-						trigger_error($data['errors'][0]['error'], E_USER_ERROR);
-						exit(1);
-					} elseif(isset($data['serverErrors'])) {
-						trigger_error($data['serverErrors'][0]['error'], E_USER_ERROR);
-						exit(1);
-					} elseif(isset($data['compiledCode'])) {
-						$code = $data['compiledCode'];
-					} else {
-						if($this->options['debug'] === true) {
-							echo '<pre>';
-							print_r($data);
-							print_r($return);
-							echo '</pre>';
-						}
-						die(trigger_error('An unknown error has occured', E_USER_ERROR));
-					}
-					
-				/* } */
-					
-				break;
-			case 'css':
-				$code = trim(CSSCompression::express($code, 'small'));
-				break;
-		}
-		
-		$this->code = $code;
-		return true;
-
-    }
-    
-    /* save the code to disk in a merged file */
-    private function save() {
-		
-		$this->debug('Save:', true);	
-
-		file_put_contents($this->merge_path, $this->code);
-		chmod($this->merge_path, 0755);
-
-		$this->debug('Code saved to ' . $this->merge_path);
-
-    	return true;
-    
-    }
-	
-	/* generate hashes */
-	private function generate_hashes() {
-		foreach($this->files as $k => $file) {
-			$this->hashes[$file] = hash('crc32b', $file['data']);
-		}
 	}
+	
+	static protected function compressFiles() {
+		
+		@ini_set(max_execution_time, 120);
 
-    /* generate and save a new cache */
-    private function generate_hash_file() {
+		self::$mincode['js']  = '';
+		self::$mincode['css'] = '';
+		
+		$curl = new CURLRequest();
+		
+		foreach(self::$files as $file) {
+		
+			$code  = $file['data'];
+			$hash  = md5($code);
+			$cache = self::$cacheDir . $hash;
+			
+			if(file_exists($cache)) {
+			
+				self::$mincode[$file['ext']] .= file_get_contents($cache);
+			
+			} else {
+
+				if($file['ext'] == 'js') {
+					
+					if(!self::$opt['useLocalJS']) {
+					
+						if((strlen($code) / 1000) / 1000 > 1) {
+							
+							trigger_error(basename($file['path']) . ' is bigger than 1000kB, split the code into multiple files or enable local compression for javascript', E_USER_ERROR);
+							exit(1);
+						
+						}
+						
+						$postfields = array(
+							'js_code'           => $code,
+							'compilation_level' => 'SIMPLE_OPTIMIZATIONS',
+							'output_format'     => 'json'
+						);
+							
+						$postfields = http_build_query($postfields) . '&output_info=errors&output_info=compiled_code';
+
+						$return = $curl->get('http://closure-compiler.appspot.com/compile', array(
+							CURLOPT_RETURNTRANSFER => true, 
+							CURLOPT_POSTFIELDS     => $postfields,
+							CURLOPT_POST           => true
+						));
+							
+						$data = json_decode($return['content'], true);
+							
+						if(isset($data['errors'])) {
+						
+						trigger_error('Web Service returned "' . $data['errors'][0]['error'] . '"', E_USER_ERROR);
+								exit(1);
+						
+						} elseif(isset($data['serverErrors'])) {
+						
+							trigger_error('Web Service returned "' . $data['serverErrors'][0]['error'] . '"', E_USER_ERROR);
+							exit(1);
+						
+						} elseif(isset($data['compiledCode'])) {
+							
+								self::$mincode[$file['ext']] .= $data['compiledCode'];
+								file_put_contents($cache, $data['compiledCode']);
+						
+						} else {
+	
+							trigger_error('An unknown error has occured', E_USER_ERROR);
+							exit(1);
+						
+						}
+							
+					}
+				
+				} elseif($file['ext'] == 'css') {
+					
+					$code = trim(CSSCompression::express($code, 'small'));
+					
+					self::$mincode[$file['ext']] .= $code;
+					
+					file_put_contents($cache, $code);
+				
+				}
+				
+			}
+		
+		}
+		
+	}
+	
+	static protected function saveFiles() {
+		
+		if(self::$jsMode) {
+		
+			file_put_contents(self::$outputDir . self::$opt['minifyFile'] . '.js', self::$mincode['js']);
+			chmod(self::$outputDir . self::$opt['minifyFile'] . '.js', 0755);
+			
+		}
+		
+		if(self::$cssMode) {
+		
+			file_put_contents(self::$outputDir . self::$opt['minifyFile'] . '.css', self::$mincode['css']);
+			chmod(self::$outputDir . self::$opt['minifyFile'] . '.css', 0755);
+			
+		}
+		
+	}
+	
+	static protected function saveCacheFile() {
         
         $cache = '';
-        $this->debug('Cache:', true);
-		
-		$this->debug('<table>');
-        foreach($this->files as $file) {
+
+        foreach(self::$files as $file)
+			$cache .= $file['path'] . ' ' . $file['hash'] . "\n";
         
-            $cache .= $file['path'] . ' ' . $file['hash'] . "\n";
-            $this->debug('<tr><td>- ' . $file['path'] . '</td><td>' . $file['hash'] . '</td></tr>');
-            
-        }
-		$this->debug('</table>');
-        
-        file_put_contents($this->options['directory'] . $this->options['cache'], trim($cache));
+        file_put_contents(self::$outputDir . self::$opt['cacheFile'], trim($cache));
 
     }
-
+	
 }

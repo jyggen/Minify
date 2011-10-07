@@ -34,14 +34,15 @@ fieldset {
 	border: 4px solid black;
 }
 
-.leftFormCol{float:left;width:50%;}
+.leftFormCol{
+	float: left;
+	width: 50%;
+}
+
 .rightFormCol{float:left;width:50%;}
 .required{color:red;}
 .info{font-weight:normal;font-style:italic;}
 #testform input{width: 150px; border: 1px solid #000000;padding:7px;}
-input.valid{background:green;color:white;}
-input.error{background:red;color:white;}
-label.error{display:inline;padding-left:15px;color:red;line-height:1.4em; clear:both;}
 
 .sticky {
 	background: #3291BF;
