@@ -488,13 +488,15 @@ class Minify {
 						$data = json_decode($return['content'], true);
 							
 						if(isset($data['errors'])) {
-						
-						trigger_error('Web Service returned "' . $data['errors'][0]['error'] . '"', E_USER_ERROR);
-								exit(1);
+							
+							print_r($data);
+							
+							trigger_error('Web Service returned "' . $data['errors'][0]['error'] . '" in ' . basename($file['path']) . ' on line ' . $data['errors'][0]['lineno'], E_USER_ERROR);
+							exit(1);
 						
 						} elseif(isset($data['serverErrors'])) {
 						
-							trigger_error('Web Service returned "' . $data['serverErrors'][0]['error'] . '"', E_USER_ERROR);
+							trigger_error('Web Service returned "' . $data['serverErrors'][0]['error'] . '" in ' . basename($file['path']) . ' on line ' . $data['serverErrors'][0]['lineno'], E_USER_ERROR);
 							exit(1);
 						
 						} elseif(isset($data['compiledCode'])) {
