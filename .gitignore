@@ -1,0 +1,15 @@
+*~
+*.bak
+Thumbs.db
+desktop.ini
+.DS_Store
+.buildpath
+.project
+.settings
+.tmpoj
+minify/cache/*
+nbproject/
+.idea
+demo/assets/files.min.css
+demo/assets/files.min.js
+demo/assets/minify.sfv
