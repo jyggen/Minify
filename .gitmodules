@@ -1,0 +1,3 @@
+[submodule "minify/css-compressor"]
+	path = minify/css-compressor
+	url = git://github.com/codenothing/css-compressor.git

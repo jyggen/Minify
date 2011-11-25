@@ -228,7 +228,7 @@ class Minify {
 	
 	static protected function includeClasses() {
 		
-		require_once self::$opt['minifyDir'] . 'CSSCompression.php';
+		require_once self::$opt['minifyDir'] . 'css-compressor/src/CSSCompression.php';
 		require_once self::$opt['minifyDir'] . 'curl.class.php';
 		
 	}
@@ -460,11 +460,11 @@ class Minify {
 			
 			} else {
 
-				if($file['ext'] == 'js') {
+				if ($file['ext'] == 'js') {
 					
-					if(!self::$opt['useLocalJS']) {
+					if (!self::$opt['useLocalJS']) {
 					
-						if((strlen($code) / 1000) / 1000 > 1) {
+						if ((strlen($code) / 1000) / 1000 > 1) {
 							
 							trigger_error(basename($file['path']) . ' is bigger than 1000kB, split the code into multiple files or enable local compression for javascript', E_USER_ERROR);
 							exit(1);
@@ -477,7 +477,7 @@ class Minify {
 							'output_format'     => 'json'
 						);
 							
-						$postfields = http_build_query($postfields) . '&output_info=errors&output_info=compiled_code';
+						$postfields = http_build_query($postfields).'&output_info=errors&output_info=compiled_code';
 
 						$return = $curl->get('http://closure-compiler.appspot.com/compile', array(
 							CURLOPT_RETURNTRANSFER => true, 
@@ -487,19 +487,19 @@ class Minify {
 							
 						$data = json_decode($return['content'], true);
 							
-						if(isset($data['errors'])) {
+						if (isset($data['errors'])) {
 							
 							print_r($data);
 							
-							trigger_error('Web Service returned "' . $data['errors'][0]['error'] . '" in ' . basename($file['path']) . ' on line ' . $data['errors'][0]['lineno'], E_USER_ERROR);
+							trigger_error('Web Service returned "'.$data['errors'][0]['error'].'" in ' . basename($file['path']) . ' on line ' . $data['errors'][0]['lineno'], E_USER_ERROR);
 							exit(1);
 						
-						} elseif(isset($data['serverErrors'])) {
+						} else if (isset($data['serverErrors'])) {
 						
-							trigger_error('Web Service returned "' . $data['serverErrors'][0]['error'] . '" in ' . basename($file['path']) . ' on line ' . $data['serverErrors'][0]['lineno'], E_USER_ERROR);
+							trigger_error('Web Service returned "'.$data['serverErrors'][0]['error'].'" in '.basename($file['path']).' on line '.$data['serverErrors'][0]['lineno'], E_USER_ERROR);
 							exit(1);
 						
-						} elseif(isset($data['compiledCode'])) {
+						} else if (isset($data['compiledCode'])) {
 							
 								self::$mincode[$file['ext']] .= $data['compiledCode'];
 								file_put_contents($cache, $data['compiledCode']);
@@ -509,11 +509,11 @@ class Minify {
 							trigger_error('An unknown error has occured', E_USER_ERROR);
 							exit(1);
 						
-						}
+						}//end if
 							
-					}
+					}//end if
 				
-				} elseif($file['ext'] == 'css') {
+				} else if ($file['ext'] === 'css') {
 					
 					$code = trim(CSSCompression::express($code, 'small'));
 					
@@ -521,40 +521,45 @@ class Minify {
 					
 					file_put_contents($cache, $code);
 				
-				}
+				}//end if
 				
-			}
+			}//end if
 		
+		}//end foreach
+		
+	}
+	
+	static protected function saveFiles()
+	{
+		
+		if (self::$jsMode === true) {
+		
+			file_put_contents(self::$outputDir.self::$opt['minifyFile'].'.js', self::$mincode['js']);
+			chmod(self::$outputDir.self::$opt['minifyFile'].'.js', 0755);
+			
+		}
+		
+		if (self::$cssMode === true) {
+		
+			file_put_contents(self::$outputDir.self::$opt['minifyFile'].'.css', self::$mincode['css']);
+			chmod(self::$outputDir.self::$opt['minifyFile'].'.css', 0755);
+			
 		}
 		
 	}
 	
-	static protected function saveFiles() {
-		
-		if(self::$jsMode) {
-		
-			file_put_contents(self::$outputDir . self::$opt['minifyFile'] . '.js', self::$mincode['js']);
-			chmod(self::$outputDir . self::$opt['minifyFile'] . '.js', 0755);
-			
-		}
-		
-		if(self::$cssMode) {
-		
-			file_put_contents(self::$outputDir . self::$opt['minifyFile'] . '.css', self::$mincode['css']);
-			chmod(self::$outputDir . self::$opt['minifyFile'] . '.css', 0755);
-			
-		}
-		
-	}
-	
-	static protected function saveCacheFile() {
+	static protected function saveCacheFile()
+	{
         
         $cache = '';
 
-        foreach(self::$files as $file)
-			$cache .= $file['path'] . ' ' . $file['hash'] . "\n";
+        foreach (self::$files as $file) {
+		
+			$cache .= $file['path'].' '.$file['hash']."\n";
         
-        file_put_contents(self::$outputDir . self::$opt['cacheFile'], trim($cache));
+		}
+		
+        file_put_contents(self::$outputDir.self::$opt['cacheFile'], trim($cache));
 
     }
 	
