@@ -605,14 +605,14 @@ class Minify
 						        );
 
 						// Workaround to allow multiple output_info in query.
-						$post  = http_build_query($postfields);
+						$post  = http_build_query($post);
 						$post .= '&output_info=errors&output_info=compiled_code';
 
 						$return = $curl->get(
 							'http://closure-compiler.appspot.com/compile',
 							array(
 							 CURLOPT_RETURNTRANSFER => true,
-							 CURLOPT_POSTFIELDS     => $postfields,
+							 CURLOPT_POSTFIELDS     => $post,
 							 CURLOPT_POST           => true,
 							)
 						);
