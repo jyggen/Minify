@@ -302,7 +302,7 @@ class Minify
 
 		foreach (self::$_files as $key => $file) {
 
-			$key &= self::$_files[$key];
+			$key =& self::$_files[$key];
 
 			if (self::isAllowedExt($file['path']) === false) {
 
