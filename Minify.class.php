@@ -300,9 +300,9 @@ class Minify
 
 		self::log("\n".'validateFiles():');
 
-		foreach (self::$_files as $key => $file) {
+		foreach (self::$_files as $k => $file) {
 
-			$key =& self::$_files[$key];
+			$key =& self::$_files[$k];
 
 			if (self::isAllowedExt($file['path']) === false) {
 
@@ -338,7 +338,7 @@ class Minify
 
 					} else {
 
-						self::$_downloadQueue[$key] = $srcPath;
+						self::$_downloadQueue[$k] = $srcPath;
 						self::log('Download: '.basename($file['path']), true, 1);
 
 					}
