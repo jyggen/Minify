@@ -1,5 +1,6 @@
 <?php
-/*
+
+/**
  * Minify Class by Jonas Stendahl
  * http://www.jyggen.com/
  *
@@ -8,559 +9,694 @@
  *
  * Closure Compiler by Google
  * http://closure-compiler.appspot.com/
- *
  */
 
-class Minify {
-	
-	static protected $opt           = array();
-	static protected $files         = array();
-	static protected $downloadQueue = array();
-	static protected $debugLog      = array();
-	static protected $cacheDir, $cssMode, $jsMode, $mincode, $outputDir;
-	
-	static public function loadConfig($path) {
-		
-		$path = __DIR__ . '/' . $path;
-		
-		if(!file_exists($path)) {
-		
-			trigger_error('Couldn\'t load configuration file from "' . $path . '"', E_USER_ERROR);
-			exit(1);
+class Minify
+{
+
+	static protected $_opt           = array();
+	static protected $_files         = array();
+	static protected $_downloadQueue = array();
+	static protected $_debugLog      = array();
+	static protected $_cacheDir;
+	static protected $_cssMode;
+	static protected $_jsMode;
+	static protected $_mincode;
+	static protected $_outputDir;
+
+	static public function loadConfig($path)
+	{
+
+		$path = __DIR__.'/'.$path;
+
+		if (file_exists($path) === false) {
+
+			$msg = 'Couldn\'t load configuration file from %s.';
+			$msg = sprintf($msg, $path);
+
+			throw new Exception($msg);
 
 		} else {
-		
-			require_once $path;
-			self::$opt = array_merge(self::$opt, $options);
-		
+
+			include_once $path;
+			self::$_opt = array_merge(self::$_opt, $options);
+
 		}
-	
+
 	}
-	
-	static public function add($files) {
-		
-		if(is_array($files)) {
-		
-			foreach($files as $file) {
-			
+
+	static public function add($files)
+	{
+
+		if (is_array($files) === true) {
+
+			foreach ($files as $file) {
+
 				self::add($file);
-			
+
 			}
-		
+
 		} else {
-		
-			self::$files[]['path'] = $files;
-		
+
+			self::$_files[]['path'] = $files;
+
 		}
-		
+
 	}
 
-	static public function run() {
-		
-		self::loadDefaultOpts();	
+	static public function run()
+	{
+
+		self::loadDefaultOpts();
 		self::validateOutputDir();
 		self::validateCacheDir();
 		self::validateFiles();
 		self::includeClasses();
-		
-		if(!empty(self::$downloadQueue))
+
+		if (empty(self::$_downloadQueue) === false) {
+
 			self::downloadFiles();
-			
+
+		}
+
 		self::detectMode();
-		
-		if(!self::evaluate()) {
-		
+
+		if (self::evaluate() === false) {
+
 			self::compressFiles();
 			self::saveFiles();
 			self::saveCacheFile();
-		
-		} else return;
+
+		}
 
 	}
-	
-	static public function getLinks() {
-		
+
+	static public function getLinks()
+	{
+
 		$links = '';
-		
-		if(self::$jsMode) {
-			
-			$file = self::$outputDir . self::$opt['minifyFile'] . '.js';
-			$hash = hash_file(self::$opt['algorithm'], $file);
-			
-			if(self::$opt['absolutePaths'])
-				$file = '/' . $file;
-			
-			$links .= '<script type="text/javascript" src="' . $file . '?' . $hash . '"></script>' . "\n";
-			
+
+		if (self::$_jsMode === true) {
+
+			$file = self::$_outputDir.self::$_opt['minifyFile'].'.js';
+			$hash = hash_file(self::$_opt['algorithm'], $file);
+
+			if (self::$_opt['absolutePaths'] === true) {
+
+				$file = '/'.$file;
+
+			}
+
+			$links .= '<script type="text/javascript"';
+			$links .= ' src="'.$file.'?'.$hash.'"></script>'."\n";
+
 		}
-		
-		if(self::$cssMode) {
-			
-			$file = self::$outputDir . self::$opt['minifyFile'] . '.css';
-			$hash = hash_file(self::$opt['algorithm'], $file);
-			
-			if(self::$opt['absolutePaths'])
-				$file = '/' . $file;
-			
-			$links .= '<link rel="stylesheet" type="text/css" media="screen" href="' . $file . '?' . $hash . '" />' . "\n";
-		
+
+		if (self::$_cssMode === true) {
+
+			$file = self::$_outputDir.self::$_opt['minifyFile'].'.css';
+			$hash = hash_file(self::$_opt['algorithm'], $file);
+
+			if (self::$_opt['absolutePaths'] === true) {
+
+				$file = '/'.$file;
+
+			}
+
+			$links .= '<link rel="stylesheet"';
+			$links .= ' type="text/css" media="screen"';
+			$links .= ' href="'.$file.'?'.$hash.'" />'."\n";
+
 		}
-		
+
 		return $links;
-	
+
 	}
-	
-	static public function printLinks() {
-		
+
+	static public function printLinks()
+	{
+
 		echo self::getLinks();
-	
+
 	}
-	
-	static public function debug() {
-		
+
+	static public function debug()
+	{
+
 		echo '<pre>';
-		
-		foreach(self::$debugLog as $log)
+
+		foreach (self::$_debugLog as $log) {
+
 			echo $log;
-		
+
+		}
+
 		echo '</pre>';
-		
+
 	}
-	
-	static protected function log($data, $eol = TRUE, $tab = 0) {
-		
+
+	static protected function log($data, $eol=true, $tab=0)
+	{
+
 		$msg = '';
-		
-		for($i = 0; $i < $tab; $i++) {$msg .= "\t"; }
-		
+
+		for ($i = 0; $i < $tab; $i++) {
+
+			$msg .= "\t";
+
+		}
+
 		$msg .= $data;
-		
-		if($eol) { $msg .= "\n"; }
 
-		self::$debugLog[] = $msg;
-	
+		if ($eol === true) {
+
+			$msg .= PHP_EOL;
+
+		}
+
+		self::$_debugLog[] = $msg;
+
 	}
-	
-	static protected function validateDir($dir) {
 
-		if(!is_dir($dir)) {
-		
-			trigger_error('"' . $dir . '" is not a valid directory', E_USER_ERROR);
-			exit(1);
-		
-		}
-		
-		if(!is_writable($dir)) {
-		
-			trigger_error('"' . $dir . '" is not writable', E_USER_ERROR);
-			exit(1);
+	static protected function validateDir($dir)
+	{
+
+		if (is_dir($dir) === false) {
+
+			$msg = '"%s" is not a valid directory.';
+			$msg = sprintf($msg, $dir);
+
+			throw new Exception($msg);
 
 		}
-			
+
+		if (is_writable($dir) === false) {
+
+			$msg = '"%s" is now writable.';
+			$msg = sprintf($msg, $dir);
+
+			throw new Exception($msg);
+
+		}
+
 		return true;
-			
-	}
-	
-	static protected function validateOpt($key) {
-		
-		if(!isset(self::$opt[$key]) OR empty(self::$opt[$key])) {
-		
-			trigger_error('Missing "' . $key . '" in configuration', E_USER_ERROR);
-			exit(1);
-		
-		} else return true;
-		
-	}
-	
-	static protected function getExt($name) {
-		
-		$info = pathinfo($name);
-		
-		return $info['extension'];
-		
-	}
-	
-	static protected function isAllowedExt($name) {
-		
-		$ext = self::getExt($name);
-		
-		return (in_array($ext, self::$opt['allowedExts']));
-		
-	}
-	
-	static protected function loadDefaultOpts() {
-		
-		$defaultOpts = array(
-			'algorithm'     => 'crc32b',
-			'cacheFile'     => 'minify.sfv',
-			'cacheDir'      => 'minify/cache/',
-			'outputDir'     => 'assets/',
-			'minifyDir'     => 'minify/',
-			'absolutePaths' => TRUE,
-			'allowedExts'   => array('js', 'css'),
-			'minifyFile'    => 'files.min',
-			'useLocalJS'    => FALSE
-		);
-		
-		self::$opt = self::$opt + $defaultOpts;
 
 	}
-	
-	static protected function validateOutputDir() {
-		
-		self::validateOpt('outputDir');
-		
-		self::$outputDir = self::$opt['outputDir'];
-		
-		return self::validateDir(self::$outputDir);
-		
+
+	static protected function validateOpt($key)
+	{
+
+		if (isset(self::$_opt[$key]) === false
+			|| empty(self::$_opt[$key]) === true
+        ) {
+
+			$msg = 'Missing "%s" in configuration.';
+			$msg = sprintf($msg, $key);
+
+			throw new Exception($msg);
+
+		} else {
+
+			return true;
+
+		}
+
 	}
-	
-	static protected function validateCacheDir() {
+
+	static protected function getExt($name)
+	{
+
+		$info = pathinfo($name);
+
+		return $info['extension'];
+
+	}
+
+	static protected function isAllowedExt($name)
+	{
+
+		$ext = self::getExt($name);
+
+		return (in_array($ext, self::$_opt['allowedExts']));
+
+	}
+
+	static protected function loadDefaultOpts()
+	{
+
+		$defaultOpts = array(
+						'algorithm'     => 'crc32b',
+						'cacheFile'     => 'minify.sfv',
+						'cacheDir'      => 'minify/cache/',
+						'outputDir'     => 'assets/',
+						'minifyDir'     => 'minify/',
+						'absolutePaths' => true,
+						'allowedExts'   => array(
+											'js',
+											'css',
+							               ),
+						'minifyFile'    => 'files.min',
+						'useLocalJS'    => false,
+					   );
+
+		self::$_opt = (self::$_opt + $defaultOpts);
+
+	}
+
+	static protected function validateOutputDir()
+	{
+
+		self::validateOpt('outputDir');
+
+		self::$_outputDir = self::$_opt['outputDir'];
+
+		return self::validateDir(self::$_outputDir);
+
+	}
+
+	static protected function validateCacheDir()
+	{
 
 		self::validateOpt('cacheDir');
-		
-		self::$cacheDir = __DIR__ . '/' . self::$opt['cacheDir'];
-		
-		return self::validateDir(self::$cacheDir);
-		
+
+		self::$_cacheDir = __DIR__.'/'.self::$_opt['cacheDir'];
+
+		return self::validateDir(self::$_cacheDir);
+
 	}
-	
-	static protected function includeClasses() {
-		
-		require_once self::$opt['minifyDir'] . 'css-compressor/src/CSSCompression.php';
-		require_once self::$opt['minifyDir'] . 'curl.class.php';
-		
+
+	static protected function includeClasses()
+	{
+
+		$dir = self::$_opt['minifyDir'];
+
+		include_once $dir.'css-compressor/src/CSSCompression.php';
+		include_once $dir.'curl.class.php';
+
 	}
-	
-	static protected function validateFiles() {
-		
-		self::log("\n" . 'validateFiles():');
-		
-		foreach(self::$files as $key => $file) {
-			
-			if(!self::isAllowedExt($file['path'])) {
-				
-				unset(self::$files[$key]);
-				trigger_error('skipping ' . basename($file['path']) . ' due to invalid file', E_USER_NOTICE);
-				
+
+	static protected function validateFiles()
+	{
+
+		self::log("\n".'validateFiles():');
+
+		foreach (self::$_files as $key => $file) {
+
+			$key &= self::$_files[$key];
+
+			if (self::isAllowedExt($file['path']) === false) {
+
+				unset($key);
+
+				$file = basename($file['path']);
+				$msg  = 'Skipping %s due to invalid file.';
+				$msg  = sprintf($msg, $file);
+
+				throw new Exception($msg);
+
 			} else {
 
-				self::$files[$key]['ext'] = self::getExt($file['path']);
-				
-				if(preg_match('/((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:\/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU', $file['path'], $match)) {
-					
-					$src_path   = $file['path'];
-					$cache_path = self::$cacheDir . md5($file['path']);
+				$key['ext'] = self::getExt($file['path']);
 
-					if(file_exists($cache_path)) {
-	
-						self::$files[$key]['data'] = file_get_contents($cache_path);
-						self::$files[$key]['path'] = $cache_path;
-						self::$files[$key]['hash'] = hash(self::$opt['algorithm'], self::$files[$key]['data']);
-						self::log('Cache   : ' . basename($file['path']), TRUE, 1);
+				$regexp = '/((http|ftp|https):\/\/[\w\-_]+
+					       (\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:
+						   \/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU';
+
+				$regexp = preg_replace('/\s+/', '', $regexp);
+
+				if (preg_match($regexp, $file['path'], $match) !== 0) {
+
+					$srcPath   = $file['path'];
+					$cachePath = self::$_cacheDir.md5($file['path']);
+
+					if (file_exists($cachePath) === true) {
+
+						$key['data'] = file_get_contents($cachePath);
+						$key['path'] = $cachePath;
+						$key['hash'] = hash(self::$_opt['algorithm'], $key['data']);
+						self::log('Cache   : '.basename($file['path']), true, 1);
 
 					} else {
-						
-						self::$downloadQueue[$key] = $src_path;
-						self::log('Download: ' . basename($file['path']), TRUE, 1);
-						
+
+						self::$_downloadQueue[$key] = $srcPath;
+						self::log('Download: '.basename($file['path']), true, 1);
+
 					}
-					
+
 				} else {
 
-					if(file_exists($file['path'])) {
-					
-						self::$files[$key]['data'] = file_get_contents($file['path']);
-						self::$files[$key]['hash'] = hash(self::$opt['algorithm'], self::$files[$key]['data']);
-						self::log('Found   : ' . basename($file['path']), TRUE, 1);
+					if (file_exists($file['path']) === true) {
+
+						$key['data'] = file_get_contents($file['path']);
+						$key['hash'] = hash(self::$_opt['algorithm'], $key['data']);
+						self::log('Found   : '.basename($file['path']), true, 1);
 
 					} else {
-						
-						unset(self::$files[$key]);
-						self::log('Invalid : ' . basename($file['path']), TRUE, 1);
-						trigger_error('skipping ' . basename($file['path']) . ' due to invalid file', E_USER_NOTICE);
+
+						unset($key);
+						self::log('Invalid : '.basename($file['path']), true, 1);
 
 					}
 
-				}
-			
-			}
-			
-		}
+				}//end if
+
+			}//end if
+
+		}//end foreach
 
 	}
-	
-	static protected function downloadFiles() {
 
-		foreach(self::$downloadQueue as $key => $file) {
-			
-			unset(self::$downloadQueue[$key]);
+	static protected function downloadFiles()
+	{
+
+		foreach (self::$_downloadQueue as $key => $file) {
+
+			unset(self::$_downloadQueue[$key]);
 			$urls[$key] = $file;
-			
+
 		}
 
-		$curl   = new CURLRequest();  
-		$return = $curl->getThreaded($urls, array(
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_FOLLOWLOCATION => true
-		), 25);
+		$curl   = new CURLRequest();
+		$return = $curl->getThreaded(
+			$urls,
+			array(
+			 CURLOPT_RETURNTRANSFER => true,
+			 CURLOPT_FOLLOWLOCATION => true,
+			),
+			25
+		);
 
-		foreach($return as $key => $data) {
+		foreach ($return as $key => $data) {
 
-			if($data['info']['http_code'] != 200) {
+			if ($data['info']['http_code'] !== 200) {
 
-				unset(self::$files[$key]);
-				trigger_error('skipping ' . basename($data['info']['url']) . ' due to download error (' . $data['info']['http_code'] . ')', E_USER_NOTICE);
-			
+				unset(self::$_files[$key]);
+
+				$file = basename($data['info']['url']);
+				$code = $data['info']['http_code'];
+
+				$msg = 'Skipping %s due to download error (%u).';
+				$msg = sprint($msg, $file, $code);
+
+				throw new Exception($msg);
+
 			} else {
-				
-				$path = self::$cacheDir . md5($data['info']['url']);
-				
-				self::$files[$key]['data'] = $data['content'];
-				self::$files[$key]['path'] = $path;
-				self::$files[$key]['hash'] = hash(self::$opt['algorithm'], $data['content']);
+
+				$path =  self::$_cacheDir.md5($data['info']['url']);
+				$key  =& self::$_files[$key];
+
+				$key['data'] = $data['content'];
+				$key['path'] = $path;
+				$key['hash'] = hash(self::$_opt['algorithm'], $data['content']);
 
 				file_put_contents($path, $data['content']);
-				
-			}
-			
-		}
-		
+
+			}//end if
+
+		}//end foreach
+
 	}
-	
-	static protected function detectMode() {
-	
-		self::$jsMode = FALSE;
-		self::$cssMode = FALSE;
-		
-		foreach(self::$files as $file) {
-		
+
+	static protected function detectMode()
+	{
+
+		self::$_jsMode  = false;
+		self::$_cssMode = false;
+
+		foreach (self::$_files as $file) {
+
 			switch($file['ext']) {
 				case 'js':
-					self::$jsMode = TRUE;
+					self::$_jsMode = true;
 					break;
 				case 'css':
-					self::$cssMode = TRUE;
+					self::$_cssMode = true;
 					break;
 			}
-			
-			if(self::$jsMode !== FALSE && self::$cssMode !== FALSE)
+
+			if (self::$_jsMode !== false && self::$_cssMode !== false) {
+
 				break;
-		
+
+			}
+
 		}
-	
+
 	}
-	
-	static protected function evaluate() {
-		
-		self::log("\n" . 'evaluate():');
-		
-		self::log('file_exists ' . self::$outputDir . self::$opt['cacheFile'], FALSE, 1);
-		if(!file_exists(self::$outputDir . self::$opt['cacheFile'])) {
-			
+
+	static protected function evaluate()
+	{
+
+		self::log("\n".'evaluate():');
+
+		$file = self::$_outputDir.self::$_opt['cacheFile'];
+
+		self::log('file_exists '.$file, false, 1);
+
+		if (file_exists($file) === false) {
+
 			self::log(' ... FAIL!');
 			return false;
-			
-		}
-		self::log(' ... OK!');
-		
-		
-		if(self::$jsMode === TRUE) {
-			
-			self::log('file_exists ' . self::$outputDir . self::$opt['minifyFile'] . '.js', FALSE, 1);
-			if(!file_exists(self::$outputDir . self::$opt['minifyFile'] . '.js')) {
-			
-				self::log(' ... FAIL!');
-				return false;
-			}
+
+		} else {
+
 			self::log(' ... OK!');
 
 		}
-		
-		if(self::$cssMode === TRUE) {
-			
-			self::log('file_exists ' . self::$outputDir . self::$opt['minifyFile'] . '.css', FALSE, 1);
-			if(!file_exists(self::$outputDir . self::$opt['minifyFile'] . '.css')) {
-				
+
+		if (self::$_jsMode === true) {
+
+			$file = self::$_outputDir.self::$_opt['minifyFile'].'.js';
+
+			self::log('file_exists '.$file, false, 1);
+
+			if (file_exists($file) === false) {
+
 				self::log(' ... FAIL!');
 				return false;
-			
+
+			} else {
+
+				self::log(' ... OK!');
+
 			}
-			self::log(' ... OK!');
-			
+
 		}
-		
-        if($cache = file_get_contents(self::$outputDir . self::$opt['cacheFile'])) {
+
+		if (self::$_cssMode === true) {
+
+			$file = self::$_outputDir.self::$_opt['minifyFile'].'.css';
+
+			self::log('file_exists '.$file, false, 1);
+
+			if (file_exists($file) === false) {
+
+				self::log(' ... FAIL!');
+				return false;
+
+			} else {
+
+				self::log(' ... OK!');
+
+			}
+
+		}
+
+		$cache = file_get_contents(self::$_outputDir.self::$_opt['cacheFile']);
+
+        if ($cache !== false) {
 
 			$cache  = explode("\n", $cache);
 			$hashes = array();
 
-			foreach($cache as $line) {
+			foreach ($cache as $line) {
 
 				list($file, $hash) = explode(' ', $line);
 				$hashes[$file]     = $hash;
 
 			}
 
-			foreach(self::$files as $k => $file) {
-				
-				self::log('check ' . basename($file['path']), FALSE, 1);
-				
-				if(!array_key_exists($file['path'], $hashes)) {
-					
+			foreach (self::$_files as $k => $file) {
+
+				self::log('check '.basename($file['path']), false, 1);
+
+				if (array_key_exists($file['path'], $hashes) === false) {
+
 					self::log(' ... FAIL!');
 					return false;
-					
+
 				}
-				
-				if($file['hash'] != $hashes[$file['path']]) {
-					
+
+				if ($file['hash'] !== $hashes[$file['path']]) {
+
 					self::log(' ... FAIL!');
 					return false;
-				
+
 				}
-				
+
 				self::log(' ... OK!');
 				unset($hashes[$file['path']]);
 
-			}
-			
-			if(!empty($hashes)) {
-				
-				foreach($hashes as $hash)
-					self::log('check ' . $hash . ' ... NOT FOUND!', TRUE, 1);
-				
-				return false;
-				
-			}
-			
-		} else return false;
-		
-	}
-	
-	static protected function compressFiles() {
-		
-		@ini_set('max_execution_time', 120);
+			}//end foreach
 
-		self::$mincode['js']  = '';
-		self::$mincode['css'] = '';
-		
+			if (empty($hashes) === false) {
+
+				foreach ($hashes as $hash) {
+
+					self::log('check '.$hash.' ... NOT FOUND!', true, 1);
+
+				}
+
+				return false;
+
+			}
+
+		} else {
+
+			return false;
+
+		}//end if
+
+	}
+
+	static protected function compressFiles()
+	{
+
+		ini_set('max_execution_time', 120);
+
+		self::$_mincode['js']  = '';
+		self::$_mincode['css'] = '';
+
 		$curl = new CURLRequest();
-		
-		foreach(self::$files as $file) {
-		
+
+		foreach (self::$_files as $file) {
+
 			$code  = $file['data'];
 			$hash  = md5($code);
-			$cache = self::$cacheDir . $hash;
-			
-			if(file_exists($cache)) {
-			
-				self::$mincode[$file['ext']] .= file_get_contents($cache);
-			
+			$cache = self::$_cacheDir.$hash;
+
+			if (file_exists($cache) === true) {
+
+				self::$_mincode[$file['ext']] .= file_get_contents($cache);
+
 			} else {
 
-				if ($file['ext'] == 'js') {
-					
-					if (!self::$opt['useLocalJS']) {
-					
-						if ((strlen($code) / 1000) / 1000 > 1) {
-							
-							trigger_error(basename($file['path']) . ' is bigger than 1000kB, split the code into multiple files or enable local compression for javascript', E_USER_ERROR);
-							exit(1);
-						
-						}
-						
-						$postfields = array(
-							'js_code'           => $code,
-							'compilation_level' => 'SIMPLE_OPTIMIZATIONS',
-							'output_format'     => 'json'
-						);
-							
-						$postfields = http_build_query($postfields).'&output_info=errors&output_info=compiled_code';
+				if ($file['ext'] === 'js') {
 
-						$return = $curl->get('http://closure-compiler.appspot.com/compile', array(
-							CURLOPT_RETURNTRANSFER => true, 
-							CURLOPT_POSTFIELDS     => $postfields,
-							CURLOPT_POST           => true
-						));
-							
+					if (self::$_opt['useLocalJS'] === false) {
+
+						if (((strlen($code) / 1000) / 1000) > 1) {
+
+							$file = basename($file['path']);
+
+							$msg  = '%s is bigger than 1000kB,';
+							$msg .= ' split the code into multiple files';
+							$msg .= ' or enable local compression for javascript.';
+							$msg  = sprintf($msg, $file);
+
+							throw new Exception($msg);
+
+						}
+
+						$post = array(
+						         'js_code'           => $code,
+						         'compilation_level' => 'SIMPLE_OPTIMIZATIONS',
+						         'output_format'     => 'json',
+						        );
+
+						// Workaround to allow multiple output_info in query.
+						$post  = http_build_query($postfields);
+						$post .= '&output_info=errors&output_info=compiled_code';
+
+						$return = $curl->get(
+							'http://closure-compiler.appspot.com/compile',
+							array(
+							 CURLOPT_RETURNTRANSFER => true,
+							 CURLOPT_POSTFIELDS     => $postfields,
+							 CURLOPT_POST           => true,
+							)
+						);
+
 						$data = json_decode($return['content'], true);
-							
-						if (isset($data['errors'])) {
-							
-							print_r($data);
-							
-							trigger_error('Web Service returned "'.$data['errors'][0]['error'].'" in ' . basename($file['path']) . ' on line ' . $data['errors'][0]['lineno'], E_USER_ERROR);
-							exit(1);
-						
-						} else if (isset($data['serverErrors'])) {
-						
-							trigger_error('Web Service returned "'.$data['serverErrors'][0]['error'].'" in '.basename($file['path']).' on line '.$data['serverErrors'][0]['lineno'], E_USER_ERROR);
-							exit(1);
-						
-						} else if (isset($data['compiledCode'])) {
-							
-								self::$mincode[$file['ext']] .= $data['compiledCode'];
-								file_put_contents($cache, $data['compiledCode']);
-						
+
+						if (isset($data['errors']) === true
+							|| isset($data['serverErrors']) === true
+						) {
+
+							$error = $data['errors'][0]['error'];
+							$file  = basename($file['path']);
+							$line  = $data['errors'][0]['lineno'];
+
+							$msg = 'Web Service returned %s in %s on line %u.';
+							$msg = sprintf($msg, $error, $file, $line);
+
+							throw new Exception($msg);
+
+						} else if (isset($data['compiledCode']) === true) {
+
+							self::$_mincode[$file['ext']] .= $data['compiledCode'];
+							file_put_contents($cache, $data['compiledCode']);
+
 						} else {
-	
-							trigger_error('An unknown error has occured', E_USER_ERROR);
-							exit(1);
-						
+
+							throw new Exception('An unknown error has occured.');
+
 						}//end if
-							
+
 					}//end if
-				
+
 				} else if ($file['ext'] === 'css') {
-					
+
 					$code = trim(CSSCompression::express($code, 'small'));
-					
-					self::$mincode[$file['ext']] .= $code;
-					
+
+					self::$_mincode[$file['ext']] .= $code;
+
 					file_put_contents($cache, $code);
-				
+
 				}//end if
-				
+
 			}//end if
-		
+
 		}//end foreach
-		
+
 	}
-	
+
 	static protected function saveFiles()
 	{
-		
-		if (self::$jsMode === true) {
-		
-			file_put_contents(self::$outputDir.self::$opt['minifyFile'].'.js', self::$mincode['js']);
-			chmod(self::$outputDir.self::$opt['minifyFile'].'.js', 0755);
-			
+
+		if (self::$_jsMode === true) {
+
+			$name = self::$_outputDir.self::$_opt['minifyFile'].'.js';
+
+			file_put_contents($name, self::$_mincode['js']);
+			chmod(self::$_outputDir.self::$_opt['minifyFile'].'.js', 0775);
+
 		}
-		
-		if (self::$cssMode === true) {
-		
-			file_put_contents(self::$outputDir.self::$opt['minifyFile'].'.css', self::$mincode['css']);
-			chmod(self::$outputDir.self::$opt['minifyFile'].'.css', 0755);
-			
+
+		if (self::$_cssMode === true) {
+
+			$name = self::$_outputDir.self::$_opt['minifyFile'].'.css';
+
+			file_put_contents($name, self::$_mincode['css']);
+			chmod(self::$_outputDir.self::$_opt['minifyFile'].'.css', 0775);
+
 		}
-		
+
 	}
-	
+
 	static protected function saveCacheFile()
 	{
-        
+
         $cache = '';
 
-        foreach (self::$files as $file) {
-		
+        foreach (self::$_files as $file) {
+
 			$cache .= $file['path'].' '.$file['hash']."\n";
-        
+
 		}
-		
-        file_put_contents(self::$outputDir.self::$opt['cacheFile'], trim($cache));
+
+        file_put_contents(self::$_outputDir.self::$_opt['cacheFile'], trim($cache));
 
     }
-	
+
 }

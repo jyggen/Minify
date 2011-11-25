@@ -7,10 +7,10 @@
 */
 class CURL
 {
-	
+
 	public $sessions 				=	array();
 	public $retry					=	0;
-	
+
 	/**
 	* Adds a cURL session to stack
 	* @param $url string, session's URL
@@ -25,7 +25,7 @@ class CURL
 			$this->setOpts( $opts, $key );
 		}
 	}
-	
+
 	/**
 	* Sets an option to a cURL session
 	* @param $option constant, cURL option
@@ -36,7 +36,7 @@ class CURL
 	{
 		curl_setopt( $this->sessions[$key], $option, $value );
 	}
-	
+
 	/**
 	* Sets an array of options to a cURL session
 	* @param $options array, array of cURL options and values
@@ -46,7 +46,7 @@ class CURL
 	{
 		curl_setopt_array( $this->sessions[$key], $options );
 	}
-	
+
 	/**
 	* Executes as cURL session
 	* @param $key int, optional argument if you only want to execute one session
@@ -54,20 +54,20 @@ class CURL
 	public function exec( $key = false )
 	{
 		$no = count( $this->sessions );
-		
+
 		if( $no == 1 )
 			$res = $this->execSingle();
 		elseif( $no > 1 ) {
 			if( $key === false )
-				$res = $this->execMulti();	
+				$res = $this->execMulti();
 			else
 				$res = $this->execSingle( $key );
 		}
-		
+
 		if( $res )
 			return $res;
 	}
-	
+
 	/**
 	* Executes a single cURL session
 	* @param $key int, id of session to execute
@@ -83,16 +83,16 @@ class CURL
 			{
 				$res = curl_exec( $this->sessions[$key] );
 				$code = $this->info( $key, CURLINFO_HTTP_CODE );
-				
+
 				$retry--;
 			}
 		}
 		else
 			$res = curl_exec( $this->sessions[$key] );
-		
+
 		return $res;
 	}
-	
+
 	/**
 	* Executes a stack of sessions
 	* @return array of content if CURLOPT_RETURNTRANSFER is set
@@ -100,15 +100,15 @@ class CURL
 	public function execMulti()
 	{
 		$mh = curl_multi_init();
-		
+
 		#Add all sessions to multi handle
 		foreach ( $this->sessions as $i => $url )
 			curl_multi_add_handle( $mh, $this->sessions[$i] );
-		
+
 		do
 			$mrc = curl_multi_exec( $mh, $active );
 		while ( $mrc == CURLM_CALL_MULTI_PERFORM );
-		
+
 		while ( $active && $mrc == CURLM_OK )
 		{
 			if ( curl_multi_select( $mh ) != -1 )
@@ -121,7 +121,7 @@ class CURL
 
 		if ( $mrc != CURLM_OK )
 			echo "Curl multi read error $mrc\n";
-		
+
 		#Get content foreach session, retry if applied
 		foreach ( $this->sessions as $i => $url )
 		{
@@ -135,12 +135,12 @@ class CURL
 					$retry = $this->retry;
 					$this->retry -= 1;
 					$eRes = $this->execSingle( $i );
-					
+
 					if( $eRes )
 						$res[] = $eRes;
 					else
 						$res[] = false;
-						
+
 					$this->retry = $retry;
 					echo '1';
 				}
@@ -152,10 +152,10 @@ class CURL
 		}
 
 		curl_multi_close( $mh );
-		
+
 		return $res;
 	}
-	
+
 	/**
 	* Closes cURL sessions
 	* @param $key int, optional session to close
@@ -170,7 +170,7 @@ class CURL
 		else
 			curl_close( $this->sessions[$key] );
 	}
-	
+
 	/**
 	* Remove all cURL sessions
 	*/
@@ -180,7 +180,7 @@ class CURL
 			curl_close( $session );
 		unset( $this->sessions );
 	}
-	
+
 	/**
 	* Returns an array of session information
 	* @param $key int, optional session key to return info on
@@ -205,10 +205,10 @@ class CURL
 			else
 				$info[] = curl_getinfo( $this->sessions[$key] );
 		}
-		
+
 		return $info;
 	}
-	
+
 	/**
 	* Returns an array of errors
 	* @param $key int, optional session key to retun error on
@@ -223,10 +223,10 @@ class CURL
 		}
 		else
 			$errors[] = curl_error( $this->sessions[$key] );
-			
+
 		return $errors;
 	}
-	
+
 	/**
 	* Returns an array of session error numbers
 	* @param $key int, optional session key to retun error on
@@ -241,10 +241,10 @@ class CURL
 		}
 		else
 			$errors[] = curl_errno( $this->sessions[$key] );
-			
+
 		return $errors;
 	}
-	
+
 }
 
 /**
@@ -255,19 +255,19 @@ class CURL
 */
 class CURLRequest extends CURL
 {
-	
+
 	public $opts = array();
 	public $threads = 50;
-	
+
 	/**
 	* Request a URL
 	* @param $url string, URL to request
 	* @param $ad_opts array, cURL options to use for the request
 	* @param $post array, associative array of post data
-	* @return array, array containing result of the request and request info 
+	* @return array, array containing result of the request and request info
 	*/
 	public function get( $url, array $ad_opts = array(), array $post = array() )
-	{	
+	{
 		$start = microtime(true);
 		$opts = $this->opts;
 		if( $ad_opts )
@@ -280,39 +280,30 @@ class CURLRequest extends CURL
 			$opts[CURLOPT_POST] = true;
 			$opts[CURLOPT_POSTFIELDS] = http_build_query( $post );
 		}
-		
+
 		$this->addSession( $url, $opts );
-		
+
 		$content = $this->exec();
 		$info    = $this->info();
 		$info    = $info[0];
 		$url     = parse_url($info['url']);
-		
+
 		$this->clear();
-		
-		/* did curl successfully fetch the url? */
-		if($info['http_code'] != 200) {
-			
-			/* guess not: print an error message (with some colors if we're running this trough cli!) */
-			if(defined('STDIN'))
-				die(sprintf("\n" . ' %s: %s returned %s!' . "\n\n", $this->color('Abort', 'RED'), $this->color($url['host']), $this->color($info['http_code'], 'RED')));
-			else
-				die(sprintf('Abort: %s returned %i!', $url['host'], $info['http_code']));
-				
-		} else {
-			
+
+		/* did curl successfully fetch the
+
 			/* running through cli? print some information! */
 			if(defined('STDIN'))
 				printf("\n" . ' %s: Fetched %s in %s.' . "\n\n", $this->color('Success', 'GREEN'), $this->color($url['host']), $this->color($this->formatSeconds(microtime(true)-$start)));
 
 			return array( 'content' => $content, 'info' => $info );
-		
-		}
+
+
 	}
 
 	/* Request an array of URLs */
-	public function getThreaded($urls, $opts = array()) {
-		
+	public function getThreaded($urls, $opts = array(), $verbose=TRUE) {
+
 		/* variables */
 		$result   = array();
 		$current  = 0;
@@ -321,82 +312,81 @@ class CURLRequest extends CURL
 		$threads  = round(sqrt($total));
 		$download = 0;
 		$speed    = array();
-		
+
 		/* if threads is higher than our default value, use the default */
 		$this->threads = ($threads < $this->threads) ? $threads : $this->threads;
-		
+
 		/* if we successfully build our url stacks */
-		if($stacks = $this->buildStacks($urls)) {	
-			
+		if($stacks = $this->buildStacks($urls)) {
+
 			/* running through cli? print some information! */
-			if(defined('STDIN'))
-				printf("\n" . ' Fetching %s URLs with %s threads:' . "\n\n", $this->color($total), $this->color($this->threads));
-			
+			if(defined('STDIN') && $verbose)
+				printf("\n" . 'Fetching %s URLs with %s threads:' . "\n\n", $this->color($total), $this->color($this->threads));
+
 			/* loop trough our stacks */
 			foreach($stacks as $stack) {
-				
+
 				/* add each url in the stack to the queue */
 				foreach($stack as $url)
 					$this->addSession($url, $opts);
-				
+
 				/* variables */
 				$content  = $this->exec();
 				$content  = (is_array($content)) ? $content : array($content);
 				$info     = $this->info();
 				$no       = 0;
-				
+
 				/* clear the queue */
 				$this->clear();
-				
+
 				/* loop trough our stack */
 				foreach($stack as $url_id => $url) {
 
 					$url = parse_url($info[$no]['url']);
 					$current++;
-					
+
 					/* did curl successfully fetch the url? */
-					if($info[$no]['http_code'] != 200) {
-						
-						/* guess not: print an error message (with some colors if we're running this trough cli!) */
-						if(defined('STDIN'))
-							die(sprintf(' %s: %s returned %s!' . "\n\n", $this->color('Abort', 'RED'), $this->color($url['host']), $this->color($info[$no]['http_code'], 'RED')));
-						else
-							die(sprintf('Abort: %s returned %i!', $url['host'], $info[$no]['http_code']));
+					if($info[$no]['http_code'] == 200) {
+
+						if(defined('STDIN') && $verbose)
+							printf('  [%s][%s] %s' . "\n", $this->percent($total, $current), $this->color($info[$no]['http_code'], 'LIGHT_GREEN'), $info[$no]['url']);
+
+						/* add stuff to return */
+						$result[$url_id] = array(
+							'url'     => $url,
+							'content' => $content[$no],
+							'info'    => $info[$no]
+						);
+
+					} else {
+
+						if(defined('STDIN') && $verbose)
+							printf('  [%s][%s] %s' . "\n", $this->percent($total, $current), $this->color($info[$no]['http_code'], 'LIGHT_RED'), $info[$no]['url'], 'LIGHT_RED');
 
 					}
-					
-					if(defined('STDIN'))
-						printf('    [%s] %s' . "\n", $this->percent($total, $current), http_build_url($info[$no]['url'], array('host' => $this->color($url['host']))));
-					
-					/* add stuff to return */
-					$result[$url_id] = array(
-						'url'     => $url,
-						'content' => $content[$no],
-						'info'    => $info[$no]
-					);
-					
+
 					/* save the time for eta calculation */
 					$download += $info[$no]['size_download'];
 
 					$no++;
-					
+
 				}
-				
+
 				/* calculate eta */
 				$right_now = microtime(true) - $start;
 				$urls_left = $total-$current;
 				$per_url   = $right_now/$current;
 				$eta_total = $per_url*$urls_left;
-				
+
 				/* this isn't the last stack and we're running through cli? print some information! */
-				if($current != $total && defined('STDIN'))
-					printf("\n" . '    - %s remaining -' . "\n\n", $this->formatSeconds($eta_total));
-			
+				if($current != $total && defined('STDIN') && $verbose)
+					printf("\n" . '  - %s remaining -' . "\n\n", $this->formatSeconds($eta_total));
+
 			}
 		}
-		
+
 		/* running through cli? print some information! */
-		if(defined('STDIN')) {
+		if(defined('STDIN') && $verbose) {
 
 			$total_time = microtime(true) - $start;
 			$label      = $this->color('Success', 'GREEN');
@@ -404,15 +394,15 @@ class CURLRequest extends CURL
 			$total      = $this->color($total);
 			$total_time = $this->color($this->formatSeconds($total_time));
 			$download   = $this->color($this->mksize($download));
-			
-			printf("\n" . ' %s: %s URLs (%s) fetched in %s, with %s per URL.' . "\n\n", $label, $total, $download, $total_time, $per_url);
-		
+
+			printf("\n" . '%s: %s URLs (%s) fetched in %s, with %s per URL.' . "\n\n", $label, $total, $download, $total_time, $per_url);
+
 		}
-		
+
 		/* return everything */
 		return $result;
 	}
-	
+
 	/**
 	* Build requst stacks
 	* @param $urls array, an array of URLs to create stacks for
@@ -421,7 +411,7 @@ class CURLRequest extends CURL
 	public function buildStacks( array $urls )
 	{
 		$stacks = array();
-		
+
 		$i = 0;
 		$no = 1;
 		foreach( $urls as $key => $url )
@@ -433,31 +423,39 @@ class CURLRequest extends CURL
 				$i++;
 			$no++;
 		}
-		
+
 		return $stacks;
 	}
-	
+
 	private function percent($total, $current) {
-	
+
 		$percent = round(($current/$total)*100, 2);
-		
+
 		if($percent != 100) {
-		
+
 			$percent = preg_split('/([,])/siU', $percent);
-			
+
 			$return  = (strlen($percent[0]) != 2) ? 0 . $percent[0] : $percent[0];
 			$return .= ',';
-			
+
 			if(isset($percent[1]))
 				$return .= (strlen($percent[1]) != 2) ? $percent[1] . 0 : $percent[1];
 			else
 				$return .= '00';
-		
+
 		} else
 			$return = $percent . ',' . 0;
-			
-		$return = $return . '%';
-		
+
+		$return = sprintf('%02.2f', $return);
+
+		if(substr($return, 0, 3) == 100)
+			$return = substr($return, 0, -1);
+
+		if(strlen($return) == 4)
+			$return = '0' . $return;
+
+		$return .= '%';
+
 		if($return >= 0 && $return <= 25)
 			$return = $this->color($return, 'LIGHT_RED');
 		elseif($return > 25 && $return < 75)
@@ -466,18 +464,18 @@ class CURLRequest extends CURL
 			$return = $this->color($return, 'LIGHT_GREEN');
 		else
 			$return = $this->color($return, 'GREEN');
-		
-		
+
+
 		return $return;
-		
-		
+
+
 	}
-	
+
 	private function formatSeconds($secs) {
-	
+
 		if($secs < 60)
 			return $this->color(round($secs, 3)) . ' sec(s)';
-		
+
         $secs = (int)round($secs);
         if ( $secs === 0 ) {
             return $this->color('0') . ' sec(s)';
@@ -524,7 +522,7 @@ class CURLRequest extends CURL
         $result = rtrim($result);
         return $result;
     }
-	
+
 	private function color($text, $color='LIGHT_BLUE', $back=1){
 		$_colors = array(
 			'LIGHT_RED'   => "[1;31m",
@@ -553,29 +551,28 @@ class CURLRequest extends CURL
 			echo chr(27)."$out$text".chr(27).chr(27)."[0m";#.chr(27);
 		}//fi
 	}
-	
+
 	private function avrg($arr)
 	{
 	$sum = array_sum($arr);
 	$num = sizeof($arr);
 	return $sum/$num;
 	}
-	
+
 	private function mksize($bytes) {
 
 		if($bytes < 1000 * 1024)
 			return number_format($bytes / 1024, 2) . ' kB';
-			
+
 		elseif($bytes < 1000 * 1048576)
 			return number_format($bytes / 1048576, 2) . ' MB';
-			
+
 		elseif($bytes < 1000 * 1073741824)
 			return number_format($bytes / 1073741824, 2) . ' GB';
-			
+
 		else
 			return number_format($bytes / 1099511627776, 2) . ' TB';
 
 	}
 
-	
 }
