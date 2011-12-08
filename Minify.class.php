@@ -198,7 +198,7 @@ class Minify
 
 		if (is_writable($dir) === false) {
 
-			$msg = '"%s" is now writable.';
+			$msg = '"%s" is not writable.';
 			$msg = sprintf($msg, $dir);
 
 			throw new Exception($msg);
