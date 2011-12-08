@@ -45,6 +45,12 @@ class Minify
 
 	}
 
+	static public function set($key, $value) {
+
+		self::$_opt[$key] = $value;
+
+	}
+
 	static public function add($files)
 	{
 

@@ -25,14 +25,15 @@ Minify::add('js/jquery.js');
 Minify::add('css/styles.css');
 Minify::add('css/test.css');
 Minify::run();
+Minify::debug();
 ?>
 
-<!DOCTYPE html> 
-<html lang="en"> 
-	<head> 
+<!DOCTYPE html>
+<html lang="en">
+	<head>
 		<meta charset="utf-8" />
 		<title>Minify - Compress your files on the fly!</title>
-	</head> 
+	</head>
 	<body>
 	<?php echo '<pre>' . htmlentities(Minify::getLinks()) . '</pre>'; ?>
 	</body>

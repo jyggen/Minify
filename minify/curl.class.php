@@ -385,8 +385,8 @@ class CURLRequest extends CURL
 			}
 		}
 
-		/* running through cli? print some information! */
-		if(defined('STDIN') && $verbose) {
+		// Running through cli? print some information!
+		if (defined('STDIN') && $verbose) {
 
 			$total_time = microtime(true) - $start;
 			$label      = $this->color('Success', 'GREEN');
@@ -399,179 +399,288 @@ class CURLRequest extends CURL
 
 		}
 
-		/* return everything */
+		// Return everything.
 		return $result;
+
 	}
 
 	/**
-	* Build requst stacks
-	* @param $urls array, an array of URLs to create stacks for
-	* @return array, URL organised into stacks
-	*/
-	public function buildStacks( array $urls )
+	 * Build requst stacks
+	 * @param $urls array, an array of URLs to create stacks for
+	 * @return array, URL organised into stacks
+	 */
+	public function buildStacks($urls=array())
 	{
-		$stacks = array();
 
-		$i = 0;
-		$no = 1;
-		foreach( $urls as $key => $url )
-		{
-			$stacks[$i][$key] = preg_replace( '/&amp;/', '&', $url );
-			if( !preg_match( '/^[a-z]{3,}:\/\//i', $url ) )
-				trigger_error( "$url does not use a valid protocol", E_USER_WARNING );
-			if( $no % $this->threads == 0 )
+		$stacks = array();
+		$i      = 0;
+		$no     = 1;
+
+		foreach ($urls as $key => $url) {
+
+			$stacks[$i][$key] = preg_replace('/&amp;/', '&', $url);
+
+			if (preg_match('/^[a-z]{3,}:\/\//i', $url) === 0) {
+
+				trigger_error($url.' does not use a valid protocol', E_USER_WARNING);
+
+			}
+
+			if (($no % $this->threads) === 0) {
+
 				$i++;
+
+			}
+
 			$no++;
+
 		}
 
 		return $stacks;
+
 	}
 
-	private function percent($total, $current) {
+	protected function percent($total, $current)
+	{
 
-		$percent = round(($current/$total)*100, 2);
+		$percent = round((($current / $total) * 100), 2);
 
-		if($percent != 100) {
+		if ($percent !== 100) {
 
 			$percent = preg_split('/([,])/siU', $percent);
 
-			$return  = (strlen($percent[0]) != 2) ? 0 . $percent[0] : $percent[0];
+			if (strlen($percent[0]) !== 2) {
+
+				$return = '0'.$percent[0];
+
+			} else {
+
+				$return = $percent[0];
+
+			}
+
 			$return .= ',';
 
-			if(isset($percent[1]))
-				$return .= (strlen($percent[1]) != 2) ? $percent[1] . 0 : $percent[1];
-			else
+			if (isset($percent[1]) === true) {
+
+				if (strlen($percent[1]) !== 2) {
+
+					$return .= $percent[1].'0';
+
+				} else {
+
+					$return .= $percent[1];
+
+				}
+
+			} else {
+
 				$return .= '00';
 
-		} else
-			$return = $percent . ',' . 0;
+			}
+
+		} else {
+
+			$return = $percent.',0';
+
+		}//end if
 
 		$return = sprintf('%02.2f', $return);
 
-		if(substr($return, 0, 3) == 100)
+		if (substr($return, 0, 3) === 100) {
+
 			$return = substr($return, 0, -1);
 
-		if(strlen($return) == 4)
-			$return = '0' . $return;
+		}
+
+
+		if (strlen($return) === 4) {
+
+			$return = '0'.$return;
+
+		}
 
 		$return .= '%';
 
-		if($return >= 0 && $return <= 25)
+		if ($return >= 0 && $return <= 25) {
+
 			$return = $this->color($return, 'LIGHT_RED');
-		elseif($return > 25 && $return < 75)
+
+		} else if ($return > 25 && $return < 75) {
+
 			$return = $this->color($return, 'YELLOW');
-		elseif($return >= 75 && $return < 100)
+
+		} else if ($return >= 75 && $return < 100) {
+
 			$return = $this->color($return, 'LIGHT_GREEN');
-		else
+
+		} else {
+
 			$return = $this->color($return, 'GREEN');
 
+		}
 
 		return $return;
 
 
 	}
 
-	private function formatSeconds($secs) {
+	protected function formatSeconds($secs)
+	{
 
-		if($secs < 60)
-			return $this->color(round($secs, 3)) . ' sec(s)';
+		$secs = round($secs);
 
-        $secs = (int)round($secs);
-        if ( $secs === 0 ) {
-            return $this->color('0') . ' sec(s)';
+		if ($secs < 60) {
+
+			return $this->color(round($secs, 3)).' sec(s)';
+
         }
-        // variables for holding values
+
         $mins  = 0;
         $hours = 0;
         $days  = 0;
         $weeks = 0;
-        // calculations
-        if ( $secs >= 60 ) {
-            $mins = (int)($secs / 60);
-            $secs = $secs % 60;
+
+        if ($secs >= 60) {
+
+            $mins = ($secs / 60);
+            $secs = ($secs % 60);
+
         }
-        if ( $mins >= 60 ) {
-            $hours = (int)($mins / 60);
-            $mins = $mins % 60;
+        if ($mins >= 60) {
+
+            $hours = ($mins / 60);
+            $mins  = ($mins % 60);
+
         }
-        if ( $hours >= 24 ) {
-            $days = (int)($hours / 24);
-            $hours = $hours % 60;
+
+        if ($hours >= 24) {
+
+            $days  = ($hours / 24);
+            $hours = ($hours % 60);
+
+		}
+
+		if ($days >= 7) {
+
+            $weeks = ($days / 7);
+            $days  = ($days % 7);
+
         }
-        if ( $days >= 7 ) {
-            $weeks = (int)($days / 7);
-            $days = $days % 7;
-        }
-        // format result
+
         $result = '';
-        if ( $weeks ) {
-            $result .= $this->color($weeks) . ' week(s) ';
-        }
-        if ( $days ) {
-            $result .= $this->color($days) . ' day(s) ';
-        }
-        if ( $hours ) {
-            $result .= $this->color($hours) . ' hour(s) ';
-        }
-        if ( $mins ) {
-            $result .= $this->color($mins) . ' min(s) ';
-        }
-        if ( $secs ) {
-            $result .= $this->color($secs) . ' sec(s)';
-        }
-        $result = rtrim($result);
-        return $result;
-    }
 
-	private function color($text, $color='LIGHT_BLUE', $back=1){
-		$_colors = array(
-			'LIGHT_RED'   => "[1;31m",
-			'LIGHT_GREEN' => "[1;32m",
-			'YELLOW'      => "[1;33m",
-			'LIGHT_BLUE'  => "[1;34m",
-			'MAGENTA'     => "[1;35m",
-			'LIGHT_CYAN'  => "[1;36m",
-			'WHITE'       => "[1;37m",
-			'NORMAL'      => "[0m",
-			'BLACK'       => "[0;30m",
-			'RED'         => "[0;31m",
-			'GREEN'       => "[0;32m",
-			'BROWN'       => "[0;33m",
-			'BLUE'        => "[0;34m",
-			'CYAN'        => "[0;36m",
-			'BOLD'        => "[1m",
-			'UNDERSCORE'  => "[4m",
-			'REVERSE'     => "[7m",
-		);
-		$out = $_colors["$color"];
-		if($out == ""){ $out = "[0m"; }
-		if($back){
-			return chr(27)."$out$text".chr(27)."[0m";#.chr(27);
-		}else{
-			echo chr(27)."$out$text".chr(27).chr(27)."[0m";#.chr(27);
-		}//fi
+		if ($weeks !== 0) {
+
+			$result .= $this->color($weeks).' week(s) ';
+
+		}
+
+		if ($days !== 0) {
+
+			$result .= $this->color($days).' day(s) ';
+
+		}
+
+		if ($hours !== 0) {
+
+			$result .= $this->color($hours).' hour(s) ';
+
+		}
+
+        if ($mins !== 0) {
+
+			$result .= $this->color($mins).' min(s) ';
+
+		}
+
+        if ($secs !== 0) {
+
+			$result .= $this->color($secs).' sec(s)';
+
+		}
+
+		$result = rtrim($result);
+
+		return $result;
+
 	}
 
-	private function avrg($arr)
+	protected function color($text, $color='LIGHT_BLUE', $back=true)
 	{
-	$sum = array_sum($arr);
-	$num = sizeof($arr);
-	return $sum/$num;
+
+		$_colors = array(
+			        'LIGHT_RED'   => '[1;31m',
+			        'LIGHT_GREEN' => '[1;32m',
+			        'YELLOW'      => '[1;33m',
+			        'LIGHT_BLUE'  => '[1;34m',
+			        'MAGENTA'     => '[1;35m',
+			        'LIGHT_CYAN'  => '[1;36m',
+			        'WHITE'       => '[1;37m',
+			        'NORMAL'      => '[0m',
+			        'BLACK'       => '[0;30m',
+			        'RED'         => '[0;31m',
+			        'GREEN'       => '[0;32m',
+			        'BROWN'       => '[0;33m',
+			        'BLUE'        => '[0;34m',
+			        'CYAN'        => '[0;36m',
+			        'BOLD'        => '[1m',
+			        'UNDERSCORE'  => '[4m',
+			        'REVERSE'     => '[7m',
+	               );
+
+		if (array_key_exists($color, $_colors) === true) {
+
+			$out = $_colors[$color];
+
+		} else {
+
+			$out = '[0m';
+
+		}
+
+		if ($back === true) {
+
+			return chr(27).$out.$text.chr(27).'[0m';
+
+		} else {
+
+			echo chr(27).$out.$text.chr(27).'[0m';
+
+		}
+
 	}
 
-	private function mksize($bytes) {
+	protected function avg($arr)
+	{
 
-		if($bytes < 1000 * 1024)
-			return number_format($bytes / 1024, 2) . ' kB';
+		$sum = array_sum($arr);
+		$num = count($arr);
 
-		elseif($bytes < 1000 * 1048576)
-			return number_format($bytes / 1048576, 2) . ' MB';
+		return ($sum / $num);
 
-		elseif($bytes < 1000 * 1073741824)
-			return number_format($bytes / 1073741824, 2) . ' GB';
+	}
 
-		else
-			return number_format($bytes / 1099511627776, 2) . ' TB';
+	protected function mksize($bytes)
+	{
+
+		if ($bytes < (1000 * 1024)) {
+
+			return number_format(($bytes / 1024), 2).' kB';
+
+		} else if ($bytes < (1000 * 1048576)) {
+
+			return number_format(($bytes / 1048576), 2).' MB';
+
+		} else if ($bytes < (1000 * 1073741824)) {
+
+			return number_format(($bytes / 1073741824), 2).' GB';
+
+		} else {
+
+			return number_format(($bytes / 1099511627776), 2).' TB';
+
+		}
 
 	}
 
