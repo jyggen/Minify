@@ -104,10 +104,19 @@ class Minify
 
 		if (self::$_jsMode === true) {
 
-			$file = self::$_outputDir.self::$_opt['minifyFile'].'.js';
+			if (self::$_opt['publicDir'] !== null) {
+
+				$file = self::$_opt['publicDir'].self::$_opt['minifyFile'].'.js';
+
+			} else {
+
+				$file = self::$_outputDir.self::$_opt['minifyFile'].'.js';
+
+			}
+
 			$hash = hash_file(self::$_opt['algorithm'], $file);
 
-			if (self::$_opt['absolutePaths'] === true) {
+			if (self::$_opt['absolutePaths'] === true && substr($file, 0, 1) !== '/') {
 
 				$file = '/'.$file;
 
@@ -120,10 +129,19 @@ class Minify
 
 		if (self::$_cssMode === true) {
 
-			$file = self::$_outputDir.self::$_opt['minifyFile'].'.css';
+			if (self::$_opt['publicDir'] !== null) {
+
+				$file = self::$_opt['publicDir'].self::$_opt['minifyFile'].'.css';
+
+			} else {
+
+				$file = self::$_outputDir.self::$_opt['minifyFile'].'.css';
+
+			}
+
 			$hash = hash_file(self::$_opt['algorithm'], $file);
 
-			if (self::$_opt['absolutePaths'] === true) {
+			if (self::$_opt['absolutePaths'] === true && substr($file, 0, 1) !== '/') {
 
 				$file = '/'.$file;
 
@@ -255,6 +273,7 @@ class Minify
 						'cacheFile'     => 'minify.sfv',
 						'cacheDir'      => __DIR__.'/minify/cache/',
 						'outputDir'     => 'assets/',
+						'publicDir'     => null,
 						'minifyDir'     => 'minify/',
 						'absolutePaths' => true,
 						'allowedExts'   => array(
