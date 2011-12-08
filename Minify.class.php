@@ -253,7 +253,7 @@ class Minify
 		$defaultOpts = array(
 						'algorithm'     => 'crc32b',
 						'cacheFile'     => 'minify.sfv',
-						'cacheDir'      => 'minify/cache/',
+						'cacheDir'      => __DIR__.'/minify/cache/',
 						'outputDir'     => 'assets/',
 						'minifyDir'     => 'minify/',
 						'absolutePaths' => true,
@@ -285,7 +285,7 @@ class Minify
 
 		self::validateOpt('cacheDir');
 
-		self::$_cacheDir = __DIR__.'/'.self::$_opt['cacheDir'];
+		self::$_cacheDir = self::$_opt['cacheDir'];
 
 		return self::validateDir(self::$_cacheDir);
 
