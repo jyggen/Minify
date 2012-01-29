@@ -205,7 +205,7 @@ class Minify
 	static protected function validateDir($dir)
 	{
 
-		if (is_dir($dir) === false && mkdir($dir) === false) {
+		if (is_dir($dir) === false && mkdir($dir, 0777, true) === false) {
 
 			$msg = '"%s" is not a valid directory.';
 			$msg = sprintf($msg, $dir);
