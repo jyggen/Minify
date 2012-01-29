@@ -205,7 +205,7 @@ class Minify
 	static protected function validateDir($dir)
 	{
 
-		if (is_dir($dir) === false) {
+		if (is_dir($dir) === false && mkdir($dir) === false) {
 
 			$msg = '"%s" is not a valid directory.';
 			$msg = sprintf($msg, $dir);
@@ -282,6 +282,7 @@ class Minify
 							               ),
 						'minifyFile'    => 'files.min',
 						'useLocalJS'    => false,
+						'compressCode'  => true
 					   );
 
 		self::$_opt = (self::$_opt + $defaultOpts);
@@ -606,79 +607,87 @@ class Minify
 
 			} else {
 
-				if ($file['ext'] === 'js') {
-
-					if (self::$_opt['useLocalJS'] === false) {
-
-						if (((strlen($code) / 1000) / 1000) > 1) {
-
-							$file = basename($file['path']);
-
-							$msg  = '%s is bigger than 1000kB,';
-							$msg .= ' split the code into multiple files';
-							$msg .= ' or enable local compression for javascript.';
-							$msg  = sprintf($msg, $file);
-
-							throw new Exception($msg);
-
-						}
-
-						$post = array(
-						         'js_code'           => $code,
-						         'compilation_level' => 'SIMPLE_OPTIMIZATIONS',
-						         'output_format'     => 'json',
-						        );
-
-						// Workaround to allow multiple output_info in query.
-						$post  = http_build_query($post);
-						$post .= '&output_info=errors&output_info=compiled_code';
-
-						$return = $curl->get(
-							'http://closure-compiler.appspot.com/compile',
-							array(
-							 CURLOPT_RETURNTRANSFER => true,
-							 CURLOPT_POSTFIELDS     => $post,
-							 CURLOPT_POST           => true,
-							)
-						);
-
-						$data = json_decode($return['content'], true);
-
-						if (isset($data['errors']) === true
-							|| isset($data['serverErrors']) === true
-						) {
-
-							$error = $data['errors'][0]['error'];
-							$file  = basename($file['path']);
-							$line  = $data['errors'][0]['lineno'];
-
-							$msg = 'Web Service returned %s in %s on line %u.';
-							$msg = sprintf($msg, $error, $file, $line);
-
-							throw new Exception($msg);
-
-						} else if (isset($data['compiledCode']) === true) {
-
-							self::$_mincode[$file['ext']] .= $data['compiledCode'];
-							file_put_contents($cache, $data['compiledCode']);
-
-						} else {
-
-							throw new Exception('An unknown error has occured.');
-
-						}//end if
-
-					}//end if
-
-				} else if ($file['ext'] === 'css') {
-
-					$code = trim(CSSCompression::express($code, 'sane'));
+				if(self::$_opt['compressCode'] === false) {
 
 					self::$_mincode[$file['ext']] .= $code;
 
-					file_put_contents($cache, $code);
+				} else {
 
-				}//end if
+					if ($file['ext'] === 'js') {
+
+						if (self::$_opt['useLocalJS'] === false) {
+
+							if (((strlen($code) / 1000) / 1000) > 1) {
+
+								$file = basename($file['path']);
+
+								$msg  = '%s is bigger than 1000kB,';
+								$msg .= ' split the code into multiple files';
+								$msg .= ' or enable local compression for javascript.';
+								$msg  = sprintf($msg, $file);
+
+								throw new Exception($msg);
+
+							}
+
+							$post = array(
+									 'js_code'           => $code,
+									 'compilation_level' => 'SIMPLE_OPTIMIZATIONS',
+									 'output_format'     => 'json',
+									);
+
+							// Workaround to allow multiple output_info in query.
+							$post  = http_build_query($post);
+							$post .= '&output_info=errors&output_info=compiled_code';
+
+							$return = $curl->get(
+								'http://closure-compiler.appspot.com/compile',
+								array(
+								 CURLOPT_RETURNTRANSFER => true,
+								 CURLOPT_POSTFIELDS     => $post,
+								 CURLOPT_POST           => true,
+								)
+							);
+
+							$data = json_decode($return['content'], true);
+
+							if (isset($data['errors']) === true
+								|| isset($data['serverErrors']) === true
+							) {
+
+								$error = $data['errors'][0]['error'];
+								$file  = basename($file['path']);
+								$line  = $data['errors'][0]['lineno'];
+
+								$msg = 'Web Service returned %s in %s on line %u.';
+								$msg = sprintf($msg, $error, $file, $line);
+
+								throw new Exception($msg);
+
+							} else if (isset($data['compiledCode']) === true) {
+
+								self::$_mincode[$file['ext']] .= $data['compiledCode'];
+								file_put_contents($cache, $data['compiledCode']);
+
+							} else {
+
+								throw new Exception('An unknown error has occured.');
+
+							}//end if
+
+						}//end if
+
+					} else if ($file['ext'] === 'css') {
+
+						$code = trim(CSSCompression::express($code, 'small'));
+
+						self::$_mincode[$file['ext']] .= $code;
+
+						file_put_contents($cache, $code);
+
+					}//end if
+
+				}
 
 			}//end if
 
