@@ -679,7 +679,7 @@ class Minify
 
 					} else if ($file['ext'] === 'css') {
 
-						$code = trim(CSSCompression::express($code, 'small'));
+						$code = trim(CSSCompression::express($code, 'sane'));
 
 						self::$_mincode[$file['ext']] .= $code;
 
