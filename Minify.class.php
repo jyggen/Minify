@@ -389,7 +389,7 @@ class Minify
 			}//end if
 
 		}//end foreach
-
+		
 	}
 
 	static protected function downloadFiles()
@@ -411,9 +411,9 @@ class Minify
 			),
 			25
 		);
-
+		
 		foreach ($return as $key => $data) {
-
+			
 			if ($data['info']['http_code'] !== 200) {
 
 				unset(self::$_files[$key]);
@@ -427,13 +427,13 @@ class Minify
 				throw new Exception($msg);
 
 			} else {
-
+				
 				$path =  self::$_cacheDir.md5($data['info']['url']);
-				$key  =& self::$_files[$key];
+				$k  =& self::$_files[$key];
 
-				$key['data'] = $data['content'];
-				$key['path'] = $path;
-				$key['hash'] = hash(self::$_opt['algorithm'], $data['content']);
+				$k['data'] = $data['content'];
+				$k['path'] = $path;
+				$k['hash'] = hash(self::$_opt['algorithm'], $data['content']);
 
 				file_put_contents($path, $data['content']);
 
@@ -448,7 +448,7 @@ class Minify
 
 		self::$_jsMode  = false;
 		self::$_cssMode = false;
-
+		
 		foreach (self::$_files as $file) {
 
 			switch($file['ext']) {
