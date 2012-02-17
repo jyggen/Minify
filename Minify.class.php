@@ -344,54 +344,45 @@ class Minify
 
 				$key['ext'] = self::getExt($file['path']);
 
-				if(in_array($key['ext'], self::$_opt['allowedExts']) === false) {
+				$regexp = '/((http|ftp|https):\/\/[\w\-_]+
+						(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:
+						\/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU';
 
-					unset($key);
-					self::log('Invalid : '.basename($file['path']), true, 1);
+				$regexp = preg_replace('/\s+/', '', $regexp);
 
-				} else {
+				if (preg_match($regexp, $file['path'], $match) !== 0) {
 
-					$regexp = '/((http|ftp|https):\/\/[\w\-_]+
-							(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:
-							\/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU';
+					$srcPath   = $file['path'];
+					$cachePath = self::$_cacheDir.md5($file['path']);
 
-					$regexp = preg_replace('/\s+/', '', $regexp);
+					if (file_exists($cachePath) === true) {
 
-					if (preg_match($regexp, $file['path'], $match) !== 0) {
-
-						$srcPath   = $file['path'];
-						$cachePath = self::$_cacheDir.md5($file['path']);
-
-						if (file_exists($cachePath) === true) {
-
-							$key['data'] = file_get_contents($cachePath);
-							$key['path'] = $cachePath;
-							$key['hash'] = hash(self::$_opt['algorithm'], $key['data']);
-							self::log('Cache   : '.basename($file['path']), true, 1);
-
-						} else {
-
-							self::$_downloadQueue[$k] = $srcPath;
-							self::log('Download: '.basename($file['path']), true, 1);
-
-						}
+						$key['data'] = file_get_contents($cachePath);
+						$key['path'] = $cachePath;
+						$key['hash'] = hash(self::$_opt['algorithm'], $key['data']);
+						self::log('Cache   : '.basename($file['path']), true, 1);
 
 					} else {
 
-						if (file_exists($file['path']) === true) {
+						self::$_downloadQueue[$k] = $srcPath;
+						self::log('Download: '.basename($file['path']), true, 1);
 
-							$key['data'] = file_get_contents($file['path']);
-							$key['hash'] = hash(self::$_opt['algorithm'], $key['data']);
-							self::log('Found   : '.basename($file['path']), true, 1);
+					}
 
-						} else {
+				} else {
 
-							unset($key);
-							self::log('Invalid : '.basename($file['path']), true, 1);
+					if (file_exists($file['path']) === true) {
 
-						}
+						$key['data'] = file_get_contents($file['path']);
+						$key['hash'] = hash(self::$_opt['algorithm'], $key['data']);
+						self::log('Found   : '.basename($file['path']), true, 1);
 
-					}//end if
+					} else {
+
+						unset($key);
+						self::log('Invalid : '.basename($file['path']), true, 1);
+
+					}
 
 				}//end if
 
