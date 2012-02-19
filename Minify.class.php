@@ -282,7 +282,8 @@ class Minify
 							               ),
 						'minifyFile'    => 'files.min',
 						'useLocalJS'    => false,
-						'compressCode'  => true
+						'compressCode'  => true,
+						'cssLevel'      => 'sane'
 					   );
 
 		self::$_opt = (self::$_opt + $defaultOpts);
@@ -316,7 +317,7 @@ class Minify
 
 		$dir = self::$_opt['minifyDir'];
 
-		include_once $dir.'css-compressor/src/CSSCompression.php';
+		include_once $dir.'CSSCompression.php';
 		include_once $dir.'curl.class.php';
 
 	}
@@ -594,7 +595,12 @@ class Minify
 		self::$_mincode['css'] = '';
 
 		$curl = new CURLRequest();
-
+		$css  = new CSSCompression();
+		
+		$css->option('readability', CSSCompression::READ_NONE);
+		$css->option('mode', self::$_opt['cssLevel']);
+		
+	
 		foreach (self::$_files as $file) {
 
 			$code  = $file['data'];
@@ -678,8 +684,9 @@ class Minify
 						}//end if
 
 					} else if ($file['ext'] === 'css') {
+						
 
-						$code = trim(CSSCompression::express($code, 'sane'));
+						$code = trim($css->compress());
 
 						self::$_mincode[$file['ext']] .= $code;
 
