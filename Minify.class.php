@@ -686,7 +686,7 @@ class Minify
 					} else if ($file['ext'] === 'css') {
 						
 
-						$code = trim($css->compress());
+						$code = trim($css->compress($code));
 
 						self::$_mincode[$file['ext']] .= $code;
 
