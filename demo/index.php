@@ -3,7 +3,7 @@ error_reporting(E_ALL | E_STRICT);
 
 require '../Minify.class.php';
 
-for($i=1; $i<=7; $i++) {
+for($i=1; $i<=20; $i++) {
 
 	if($i < 10)
 		$i = '00'.$i;
