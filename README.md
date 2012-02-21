@@ -1,14 +1,18 @@
 # Minify! #
 
 ## Description ##
+  Minify optmize, compress and combine your css and javascript files on the fly!
+
+  Even though Minify is called every request you won't notice it. The script in demo/ takes about 0.009 seconds to verify and check 26 different files with a memory usage of 1.248MB (and remember that this is 26 files!).
 
 ## Usage ##
 	<?php
-	Minify::add('jquery.js');
+	Minify::add('https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.js');
 	Minify::add('script.js');
 	Minify::add('reset.css');
 	Minify::add('design.css');
 	Minify::run();
+  Minify::printLinks();
 	?>
 
 ## Know Issues ##

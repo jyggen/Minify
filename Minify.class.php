@@ -24,6 +24,7 @@ class Minify
 	static protected $_outputDir;
 	static protected $_publicDir;
 	static protected $_benchmark;
+	static protected $_memory;
 	
 	/**
 	 * Load a configurations file.
@@ -100,6 +101,7 @@ class Minify
 	{
 
 		self::$_benchmark = microtime(true);
+		self::$_memory    = memory_get_peak_usage();
 
 		self::loadDefaultOpts();
 		self::validateOutputDir();
@@ -125,7 +127,9 @@ class Minify
 		}
 
 		$exec = round((microtime(true)-self::$_benchmark), 3);
-		self::log("\n".'Executed in '.$exec.' seconds.');
+		$mem  = ((memory_get_peak_usage() - self::$_memory) / 1048576);
+
+		self::log("\n".'Executed in '.$exec.' seconds using ' . round($mem, 3) . 'MB memory.');
 
 	}
 
