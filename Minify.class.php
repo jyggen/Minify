@@ -23,6 +23,7 @@ class Minify
 	static protected $_jsMode;
 	static protected $_mincode;
 	static protected $_outputDir;
+	static protected $_publicDir;
 
 	static public function loadConfig($path)
 	{
@@ -45,7 +46,8 @@ class Minify
 
 	}
 
-	static public function set($key, $value) {
+	static public function set($key, $value)
+	{
 
 		self::$_opt[$key] = $value;
 
@@ -76,6 +78,7 @@ class Minify
 		self::loadDefaultOpts();
 		self::validateOutputDir();
 		self::validateCacheDir();
+		self::validatePublicDir();
 		self::validateFiles();
 		self::includeClasses();
 
@@ -102,54 +105,24 @@ class Minify
 
 		$links = '';
 
-		if (self::$_jsMode === true) {
-
-			if (self::$_opt['publicDir'] !== null) {
-
-				$file = self::$_opt['publicDir'].self::$_opt['minifyFile'].'.js';
-
-			} else {
-
-				$file = self::$_outputDir.self::$_opt['minifyFile'].'.js';
-
-			}
-
-			$hash = hash_file(self::$_opt['algorithm'], $file);
-
-			if (self::$_opt['absolutePaths'] === true && substr($file, 0, 1) !== '/') {
-
-				$file = '/'.$file;
-
-			}
-
-			$links .= '<script type="text/javascript"';
-			$links .= ' src="'.$file.'?'.$hash.'"></script>'."\n";
-
-		}
-
 		if (self::$_cssMode === true) {
 
-			if (self::$_opt['publicDir'] !== null) {
-
-				$file = self::$_opt['publicDir'].self::$_opt['minifyFile'].'.css';
-
-			} else {
-
-				$file = self::$_outputDir.self::$_opt['minifyFile'].'.css';
-
-			}
-
-			$hash = hash_file(self::$_opt['algorithm'], $file);
-
-			if (self::$_opt['absolutePaths'] === true && substr($file, 0, 1) !== '/') {
-
-				$file = '/'.$file;
-
-			}
-
+			$file   = self::$_opt['minifyFile'].'.css';
+			$hash   = hash_file(self::$_opt['algorithm'], self::$_outputDir.$file);
+			$file   = self::$_publicDir.$file ;
 			$links .= '<link rel="stylesheet"';
 			$links .= ' type="text/css" media="screen"';
 			$links .= ' href="'.$file.'?'.$hash.'" />'."\n";
+
+		}
+
+		if (self::$_jsMode === true) {
+
+			$file   = self::$_opt['minifyFile'].'.js';
+			$hash   = hash_file(self::$_opt['algorithm'], self::$_outputDir.$file);
+			$file   = self::$_publicDir.$file ;
+			$links .= '<script type="text/javascript"';
+			$links .= ' src="'.$file.'?'.$hash.'"></script>'."\n";
 
 		}
 
@@ -260,8 +233,9 @@ class Minify
 	{
 
 		$ext = self::getExt($name);
+		$ok  = (in_array($ext, self::$_opt['allowedExts']));
 
-		return (in_array($ext, self::$_opt['allowedExts']));
+		return $ok;
 
 	}
 
@@ -283,7 +257,7 @@ class Minify
 						'minifyFile'    => 'files.min',
 						'useLocalJS'    => false,
 						'compressCode'  => true,
-						'cssLevel'      => 'sane'
+						'cssLevel'      => 'sane',
 					   );
 
 		self::$_opt = (self::$_opt + $defaultOpts);
@@ -296,8 +270,33 @@ class Minify
 		self::validateOpt('outputDir');
 
 		self::$_outputDir = self::$_opt['outputDir'];
+		$isValid          = self::validateDir(self::$_outputDir);
 
-		return self::validateDir(self::$_outputDir);
+		return $isValid;
+
+	}
+
+	static protected function validatePublicDir()
+	{
+		
+		if (self::$_opt['publicDir'] === null) {
+		
+			self::$_publicDir = self::$_outputDir;
+		
+		} else {
+			
+			self::$_publicDir = self::$_opt['publicDir'];
+
+		}
+
+		$char = substr(self::$_publicDir, 0, 1);
+
+		if (self::$_opt['absolutePaths'] === true && $char !== '/') {
+
+			self::$_publicDir = '/'.self::$_publicDir;
+
+		}
+
 
 	}
 
@@ -307,8 +306,9 @@ class Minify
 		self::validateOpt('cacheDir');
 
 		self::$_cacheDir = self::$_opt['cacheDir'];
+		$isValid         = self::validateDir(self::$_cacheDir);
 
-		return self::validateDir(self::$_cacheDir);
+		return $isValid;
 
 	}
 
@@ -430,7 +430,7 @@ class Minify
 			} else {
 				
 				$path =  self::$_cacheDir.md5($data['info']['url']);
-				$k  =& self::$_files[$key];
+				$k    =& self::$_files[$key];
 
 				$k['data'] = $data['content'];
 				$k['path'] = $path;
@@ -613,7 +613,7 @@ class Minify
 
 			} else {
 
-				if(self::$_opt['compressCode'] === false) {
+				if (self::$_opt['compressCode'] === false) {
 
 					self::$_mincode[$file['ext']] .= $code;
 
@@ -628,8 +628,8 @@ class Minify
 								$file = basename($file['path']);
 
 								$msg  = '%s is bigger than 1000kB,';
-								$msg .= ' split the code into multiple files';
-								$msg .= ' or enable local compression for javascript.';
+								$msg .= ' split the code into multiple files or';
+								$msg .= ' enable local compression for javascript.';
 								$msg  = sprintf($msg, $file);
 
 								throw new Exception($msg);
@@ -671,9 +671,11 @@ class Minify
 								throw new Exception($msg);
 
 							} else if (isset($data['compiledCode']) === true) {
+								
+								$code = $data['compiledCode'];
 
-								self::$_mincode[$file['ext']] .= $data['compiledCode'];
-								file_put_contents($cache, $data['compiledCode']);
+								self::$_mincode[$file['ext']] .= $code;
+								file_put_contents($cache, $code);
 
 							} else {
 
@@ -694,7 +696,7 @@ class Minify
 
 					}//end if
 
-				}
+				}//end if
 
 			}//end if
 
