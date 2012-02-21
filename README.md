@@ -1,9 +1,9 @@
 # Minify! #
 
 ## Description ##
-  Minify optmize, compress and combine your css and javascript files on the fly!
+  Minify optimize, compress and combine your css and javascript files on the fly!
 
-  Even though Minify is called every request you won't notice it. The script in demo/ takes about 0.009 seconds to verify and check 26 different files with a memory usage of 1.248MB (and remember that this is 26 files!).
+  Even though Minify is called every request you won't notice it. The script in demo/ takes about 0.009 seconds to verify and check 26 different files with a memory usage of 1.248MB (and remember that this is with 26 files!).
 
 ## Usage ##
 	<?php
