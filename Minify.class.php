@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Minify Class by Jonas Stendahl
  * http://www.jyggen.com/
@@ -25,7 +24,13 @@ class Minify
 	static protected $_outputDir;
 	static protected $_publicDir;
 	static protected $_benchmark;
-
+	
+	/**
+	 * Load a configurations file.
+	 *
+	 * @param	string	path to config file
+	 * @return	void
+	 */
 	static public function loadConfig($path)
 	{
 
@@ -47,13 +52,26 @@ class Minify
 
 	}
 
+	/**
+	 * Set an options value.
+	 *
+	 * @param	string	options key
+	 * @param	string	options value
+	 * @return	void
+	 */
 	static public function set($key, $value)
 	{
 
 		self::$_opt[$key] = $value;
 
 	}
-
+	
+	/**
+	 * Add file(s) to be minified.
+	 *
+	 * @param	mixed	URL or file path to file(s) to minified
+	 * @return	void
+	 */
 	static public function add($files)
 	{
 
@@ -73,6 +91,11 @@ class Minify
 
 	}
 
+	/**
+	 * Run Minify!
+	 *
+	 * @return	void
+	 */
 	static public function run()
 	{
 
@@ -101,11 +124,16 @@ class Minify
 
 		}
 
-		$exec = round(microtime(true)-self::$_benchmark, 3);
+		$exec = round((microtime(true)-self::$_benchmark), 3);
 		self::log("\n".'Executed in '.$exec.' seconds.');
 
 	}
 
+	/**
+	 * Generate HTML tag(s) to include the minified file(s).
+	 *
+	 * @return	string
+	 */
 	static public function getLinks()
 	{
 
@@ -135,14 +163,24 @@ class Minify
 		return $links;
 
 	}
-
+	
+	/**
+	 * Output HTML tag(s) to include the minified file(s).
+	 *
+	 * @return	void
+	 */
 	static public function printLinks()
 	{
 
 		echo self::getLinks();
 
 	}
-
+	
+	/**
+	 * Print debug information.
+	 *
+	 * @return	void
+	 */
 	static public function debug()
 	{
 
@@ -157,7 +195,15 @@ class Minify
 		echo '</pre>';
 
 	}
-
+	
+	/**
+	 * Insert a string into the debug log.
+	 *
+	 * @param	string	message to log
+	 * @param	boolean	if a EOL character should be appended
+	 * @param	integer	indent length
+	 * @return	void
+	 */
 	static protected function log($data, $eol=true, $tab=0)
 	{
 
@@ -180,7 +226,14 @@ class Minify
 		self::$_debugLog[] = $msg;
 
 	}
-
+	
+	/**
+	 * Validate that a directory exists and is writable. Will try to
+	 * create it otherwise.
+	 *
+	 * @param	string	path to directory
+	 * @return boolean
+	 */
 	static protected function validateDir($dir)
 	{
 
@@ -205,7 +258,13 @@ class Minify
 		return true;
 
 	}
-
+	
+	/**
+	 * Validate that an options key is properly set.
+	 *
+	 * @param	string	options key to validate
+	 * @return	boolean
+	 */
 	static protected function validateOpt($key)
 	{
 
@@ -225,7 +284,13 @@ class Minify
 		}
 
 	}
-
+	
+	/**
+	 * Return the extension of a filename.
+	 *
+	 * @param	string	filename
+	 * @return	string
+	 */
 	static protected function getExt($name)
 	{
 
@@ -235,6 +300,12 @@ class Minify
 
 	}
 
+	/**
+	 * Check if the filename's extension is allowed.
+	 *
+	 * @param	string	filename
+	 * @return	boolean
+	 */
 	static protected function isAllowedExt($name)
 	{
 
@@ -245,6 +316,11 @@ class Minify
 
 	}
 
+	/**
+	 * Merge the default options with any user changes.
+	 *
+	 * @return	void
+	 */
 	static protected function loadDefaultOpts()
 	{
 
@@ -270,6 +346,11 @@ class Minify
 
 	}
 
+	/**
+	 * Validate that the output directory exists and is writable.
+	 *
+	 * @return	boolean
+	 */
 	static protected function validateOutputDir()
 	{
 
@@ -282,6 +363,12 @@ class Minify
 
 	}
 
+	/**
+	 * Validate that the public directory exists and is writable. Also
+	 * adds / to non-absolute paths if absolutePaths is set to true.
+	 *
+	 * @return	void
+	 */
 	static protected function validatePublicDir()
 	{
 		
@@ -306,6 +393,11 @@ class Minify
 
 	}
 
+	/**
+	 * Validate that the cache directory exists and is writable.
+	 *
+	 * @return boolean
+	 */
 	static protected function validateCacheDir()
 	{
 
@@ -318,6 +410,11 @@ class Minify
 
 	}
 
+	/**
+	 * Include third-party classes and files.
+	 *
+	 * @return void
+	 */
 	static protected function includeClasses()
 	{
 
@@ -328,6 +425,12 @@ class Minify
 
 	}
 
+	/**
+	 * Validate that every file added to Minify is valid and any
+	 * remote file to the download queue if the source isn't cached.
+	 *
+	 * @return void
+	 */
 	static protected function validateFiles()
 	{
 
