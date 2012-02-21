@@ -24,6 +24,7 @@ class Minify
 	static protected $_mincode;
 	static protected $_outputDir;
 	static protected $_publicDir;
+	static protected $_benchmark;
 
 	static public function loadConfig($path)
 	{
@@ -75,6 +76,8 @@ class Minify
 	static public function run()
 	{
 
+		self::$_benchmark = microtime(true);
+
 		self::loadDefaultOpts();
 		self::validateOutputDir();
 		self::validateCacheDir();
@@ -97,6 +100,9 @@ class Minify
 			self::saveCacheFile();
 
 		}
+
+		$exec = round(microtime(true)-self::$_benchmark, 3);
+		self::log("\n".'Executed in '.$exec.' seconds.');
 
 	}
 
