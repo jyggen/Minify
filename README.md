@@ -38,4 +38,3 @@
   * evaluate's cyclomatic complexity is way above normal.
 * Toggle file combination.
   * combineFiles switch to toggle if all code should be combined into a single file or if they should be separated.
- 
