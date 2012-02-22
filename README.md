@@ -21,7 +21,7 @@ Even though Minify is called every request you won't notice it. The script in de
 * Under rare circumstances Minify may fail to recompress (fixed?).
 * Changing useLocalJS to true will crash Minify (due to localJS not being implemented yet).
 
-## Features and Ideas ##
+## Upcoming Features and Ideas ##
 * HTML compression.
 	* This would require Minify to catch and supress any output by PHP and compress it during shutdown.
 	* A more basic implementation would be to pass any HTML code to a method within Minify. 
@@ -38,7 +38,5 @@ Even though Minify is called every request you won't notice it. The script in de
 		* Missing files.
 		* Added files.
 * Refactor Code
-	* Lots of methods do more stuff than they should.
-	* evaluate's cyclomatic complexity is way above normal.
 * Toggle file combination.
 	* combineFiles switch to toggle if all code should be combined into a single file or if they should be separated.
