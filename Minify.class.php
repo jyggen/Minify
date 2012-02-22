@@ -584,6 +584,64 @@ class Minify
 
 	}
 
+	static protected function validateCache()
+	{
+			
+			$cache = file_get_contents(self::$_outputDir.self::$_opt['cacheFile']);
+
+			if ($cache !== false) {
+
+				$cache  = explode(PHP_EOL, $cache);
+				$hashes = array();
+
+				foreach ($cache as $line) {
+
+					list($file, $hash) = explode(' ', $line);
+					$hashes[$file]     = $hash;
+
+				}
+
+				foreach (self::$_files as $k => $file) {
+
+					self::log('check '.basename($file['path']), false, 1);
+
+					if (array_key_exists($file['path'], $hashes) === false) {
+
+						self::log(' ... FAIL!');
+						return false;
+
+					} else if ($file['hash'] !== $hashes[$file['path']]) {
+
+						self::log(' ... FAIL!');
+						return false;
+
+					} else {
+
+						self::log(' ... OK!');
+						unset($hashes[$file['path']]);
+
+					}
+
+				}//end foreach
+
+				if (empty($hashes) === false) {
+
+					return false;
+
+				} else {
+					
+					return true;
+
+				}
+
+			} else {
+
+				return false;
+
+			}//end if
+
+	}
+
 	static protected function evaluate()
 	{
 
@@ -642,60 +700,8 @@ class Minify
 
 		}
 
-		$cache = file_get_contents(self::$_outputDir.self::$_opt['cacheFile']);
-
-        if ($cache !== false) {
-
-			$cache  = explode(PHP_EOL, $cache);
-			$hashes = array();
-
-			foreach ($cache as $line) {
-
-				list($file, $hash) = explode(' ', $line);
-				$hashes[$file]     = $hash;
-
-			}
-
-			foreach (self::$_files as $k => $file) {
-
-				self::log('check '.basename($file['path']), false, 1);
-
-				if (array_key_exists($file['path'], $hashes) === false) {
-
-					self::log(' ... FAIL!');
-					return false;
-
-				}
-
-				if ($file['hash'] !== $hashes[$file['path']]) {
-
-					self::log(' ... FAIL!');
-					return false;
-
-				}
-
-				self::log(' ... OK!');
-				unset($hashes[$file['path']]);
-
-			}//end foreach
-
-			if (empty($hashes) === false) {
-
-				foreach ($hashes as $hash) {
-
-					self::log('check '.$hash.' ... NOT FOUND!', true, 1);
-
-				}
-
-				return false;
-
-			}
-
-		} else {
-
-			return false;
-
-		}//end if
+		$valid = self::validateCache();
+		return $valid;
 
 	}
 
