@@ -127,9 +127,9 @@ class Minify
 		}
 
 		$exec = round((microtime(true)-self::$_benchmark), 3);
-		$mem  = ((memory_get_peak_usage() - self::$_memory) / 1048576);
+		$mem  = round(((memory_get_peak_usage() - self::$_memory) / 1048576), 3);
 
-		self::log("\n".'Executed in '.$exec.' seconds using ' . round($mem, 3) . 'MB memory.');
+		self::log(PHP_EOL.'Executed in '.$exec.' seconds using '.$mem.'MB memory.');
 
 	}
 
@@ -150,7 +150,7 @@ class Minify
 			$file   = self::$_publicDir.$file ;
 			$links .= '<link rel="stylesheet"';
 			$links .= ' type="text/css" media="screen"';
-			$links .= ' href="'.$file.'?'.$hash.'" />'."\n";
+			$links .= ' href="'.$file.'?'.$hash.'" />'.PHP_EOL;
 
 		}
 
@@ -160,7 +160,7 @@ class Minify
 			$hash   = hash_file(self::$_opt['algorithm'], self::$_outputDir.$file);
 			$file   = self::$_publicDir.$file ;
 			$links .= '<script type="text/javascript"';
-			$links .= ' src="'.$file.'?'.$hash.'"></script>'."\n";
+			$links .= ' src="'.$file.'?'.$hash.'"></script>'.PHP_EOL;
 
 		}
 
@@ -438,7 +438,7 @@ class Minify
 	static protected function validateFiles()
 	{
 
-		self::log("\n".'validateFiles():');
+		self::log(PHP_EOL.'validateFiles():');
 
 		foreach (self::$_files as $k => $file) {
 
@@ -587,7 +587,7 @@ class Minify
 	static protected function evaluate()
 	{
 
-		self::log("\n".'evaluate():');
+		self::log(PHP_EOL.'evaluate():');
 
 		$file = self::$_outputDir.self::$_opt['cacheFile'];
 
@@ -646,7 +646,7 @@ class Minify
 
         if ($cache !== false) {
 
-			$cache  = explode("\n", $cache);
+			$cache  = explode(PHP_EOL, $cache);
 			$hashes = array();
 
 			foreach ($cache as $line) {
@@ -847,7 +847,7 @@ class Minify
 
         foreach (self::$_files as $file) {
 
-			$cache .= $file['path'].' '.$file['hash']."\n";
+			$cache .= $file['path'].' '.$file['hash'].PHP_EOL;
 
 		}
 
