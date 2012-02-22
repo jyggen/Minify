@@ -16,9 +16,17 @@ class TestOfMinify extends UnitTestCase {
 
 	function testValidateDir() {
 		
-		$this->ignoreException(Min::validateDir('../tests'));
-		$this->expectException(Min::validateDir('tests'));
-		$this->expectException(Min::validateDir('../tests'));
+		$return = Min::validateDir('tests');
+		$this->assertTrue($return);
+
+		$return = Min::validateDir('tests');
+		$this->assertTrue($return);
+
+		chmod('tests', 0000);
+		$this->expectException();
+		Min::validateDir('tests');
+
+		rmdir('tests');
 		
 	}
 

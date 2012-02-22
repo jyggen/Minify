@@ -246,7 +246,7 @@ class Minify
 			$msg = '"%s" is not a valid directory.';
 			$msg = sprintf($msg, $dir);
 
-			throw new Exception($msg);
+			throw new MinifyException($msg);
 
 		}
 
@@ -255,7 +255,7 @@ class Minify
 			$msg = '"%s" is not writable.';
 			$msg = sprintf($msg, $dir);
 
-			throw new Exception($msg);
+			throw new MinifyException($msg);
 
 		}
 
@@ -860,5 +860,11 @@ class Minify
 		file_put_contents(self::$_outputDir.self::$_opt['cacheFile'], trim($cache));
 
 	}
+
+}
+
+class MinifyException extends Exception
+{
+	
 
 }
