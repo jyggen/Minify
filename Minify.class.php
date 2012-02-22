@@ -274,7 +274,7 @@ class Minify
 
 		if (isset(self::$_opt[$key]) === false
 			|| empty(self::$_opt[$key]) === true
-        ) {
+		) {
 
 			$msg = 'Missing "%s" in configuration.';
 			$msg = sprintf($msg, $key);
@@ -339,7 +339,7 @@ class Minify
 						'allowedExts'   => array(
 											'js',
 											'css',
-							               ),
+										   ),
 						'minifyFile'    => 'files.min',
 						'useLocalJS'    => false,
 						'compressCode'  => true,
@@ -849,16 +849,16 @@ class Minify
 	static protected function saveCacheFile()
 	{
 
-        $cache = '';
+		$cache = '';
 
-        foreach (self::$_files as $file) {
+		foreach (self::$_files as $file) {
 
 			$cache .= $file['path'].' '.$file['hash'].PHP_EOL;
 
 		}
 
-        file_put_contents(self::$_outputDir.self::$_opt['cacheFile'], trim($cache));
+		file_put_contents(self::$_outputDir.self::$_opt['cacheFile'], trim($cache));
 
-    }
+	}
 
 }
