@@ -10,6 +10,8 @@
  * http://closure-compiler.appspot.com/
  */
 
+class MinifyException extends Exception {}
+
 class Minify
 {
 
@@ -138,29 +140,96 @@ class Minify
 	 *
 	 * @return	string
 	 */
-	static public function getLinks()
+	static public function getLinks($which='both')
 	{
 
 		$links = '';
 
-		if (self::$_cssMode === true) {
+		if (($which == 'both' || $which == 'js') && self::$_jsMode === true) {
 
-			$file   = self::$_opt['minifyFile'].'.css';
-			$hash   = hash_file(self::$_opt['algorithm'], self::$_outputDir.$file);
-			$file   = self::$_publicDir.$file ;
-			$links .= '<link rel="stylesheet"';
-			$links .= ' type="text/css" media="screen"';
-			$links .= ' href="'.$file.'?'.$hash.'" />'.PHP_EOL;
+			if (self::$_opt['publicDir'] !== null) {
+
+				$file = self::$_opt['publicDir'].self::$_opt['minifyFile'].'.js';
+
+			} else {
+
+				$file = self::$_outputDir.self::$_opt['minifyFile'].'.js';
+
+			}
+
+			if(self::$_opt['useRewrite']) {
+
+				$ident = date('Ymd', filemtime($file));
+
+			} else {
+
+				$ident = hash_file(self::$_opt['algorithm'], $file);
+
+			}
+
+			if (self::$_opt['absolutePaths'] === true && substr($file, 0, 1) !== '/') {
+
+				$file = '/'.$file;
+
+			}
+
+			if(self::$_opt['useRewrite']) {
+				
+				$ext  = pathinfo($file, PATHINFO_EXTENSION);
+				$file = substr($file, 0, -strlen($ext));
+				$file = $file.$ident.'.'.$ext;
+			
+			} else {
+			
+				$file = $file.'?'.$ident;
+			
+			}
+
+			$links .= sprintf(self::$_opt['htmlJS'], $file)."\n";
 
 		}
 
-		if (self::$_jsMode === true) {
+		if (($which == 'both' || $which == 'css') && self::$_cssMode === true) {
 
-			$file   = self::$_opt['minifyFile'].'.js';
-			$hash   = hash_file(self::$_opt['algorithm'], self::$_outputDir.$file);
-			$file   = self::$_publicDir.$file ;
-			$links .= '<script type="text/javascript"';
-			$links .= ' src="'.$file.'?'.$hash.'"></script>'.PHP_EOL;
+			if (self::$_opt['publicDir'] !== null) {
+
+				$file = self::$_opt['publicDir'].self::$_opt['minifyFile'].'.css';
+
+			} else {
+
+				$file = self::$_outputDir.self::$_opt['minifyFile'].'.css';
+
+			}
+
+			if(self::$_opt['useRewrite']) {
+
+				$ident = date('Ymd', filemtime($file));
+
+			} else {
+
+				$ident = hash_file(self::$_opt['algorithm'], $file);
+
+			}
+
+			if (self::$_opt['absolutePaths'] === true && substr($file, 0, 1) !== '/') {
+
+				$file = '/'.$file;
+
+			}
+			
+			if(self::$_opt['useRewrite']) {
+				
+				$ext  = pathinfo($file, PATHINFO_EXTENSION);
+				$file = substr($file, 0, -strlen($ext));
+				$file = $file.$ident.'.'.$ext;
+			
+			} else {
+			
+				$file = $file.'?'.$ident;
+			
+			}
+
+			$links .= sprintf(self::$_opt['htmlCSS'], $file)."\n";
 
 		}
 
@@ -340,10 +409,13 @@ class Minify
 											'js',
 											'css',
 										   ),
-						'minifyFile'    => 'files.min',
+						'minifyFile'    => 'compressed',
 						'useLocalJS'    => false,
+						'htmlCSS'       => '<link rel="stylesheet" media="screen" href="%s">',
+						'htmlJS'        => '<script src="%s"></script>',
 						'compressCode'  => true,
 						'cssLevel'      => 'sane',
+						'useRewrite'    => false
 					   );
 
 		self::$_opt = (self::$_opt + $defaultOpts);
@@ -718,8 +790,7 @@ class Minify
 		
 		$css->option('readability', CSSCompression::READ_NONE);
 		$css->option('mode', self::$_opt['cssLevel']);
-		
-	
+
 		foreach (self::$_files as $file) {
 
 			$code  = $file['data'];
@@ -860,11 +931,5 @@ class Minify
 		file_put_contents(self::$_outputDir.self::$_opt['cacheFile'], trim($cache));
 
 	}
-
-}
-
-class MinifyException extends Exception
-{
-	
 
 }
