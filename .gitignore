@@ -10,6 +10,4 @@ desktop.ini
 minify/cache/*
 nbproject/
 .idea
-demo/assets/files.min.css
-demo/assets/files.min.js
-demo/assets/minify.sfv
+demo/assets/*
