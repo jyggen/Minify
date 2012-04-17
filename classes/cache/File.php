@@ -7,6 +7,13 @@
  * @link       http://www.jyggen.com
  */
 
-require_once 'classes/Minify.php';
-require_once 'classes/File.php';
-require_once 'classes/Cache.php';
+namespace Minify;
+
+class Cache_File
+{
+
+	public function set() {}
+	public function get() {}
+	public function exists() {}
+
+}

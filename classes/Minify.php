@@ -14,18 +14,39 @@ class MinifyException extends \Exception {}
 class Minify
 {
 
+	protected $files = array();
+	protected $cache;
+
+	public function __construct() {
+
+		$this->cache = Cache::load('file');
+
+	}
+
 	public function add($path) {
 
-		if (File::isValid($path) === true) {
+		// If is remote file.
+		if(preg_match('/((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:\/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU', $path) !== 0) {
 
-			$this->files[] = new File($path);
+			$cache = md5($path).'.cache';
 
 		} else {
 
-			throw new MinifyException();
+			// If file exists.
+			if (File::isValid($path) === true) {
+
+				$this->files[] = new File($path);
+
+			} else {
+
+				throw new MinifyException('Invalid file: '.basename($path));
+
+			}
 
 		}
 
 	}
+
+	public static function loadConfig() { }
 
 }
