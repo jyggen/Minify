@@ -9,11 +9,19 @@
 
 namespace Minify;
 
-class Cache_File
+class Cache_File extends Cache
 {
 
-	public function set() {}
-	public function get() {}
-	public function exists() {}
+	public function set($key, $data) {
+
+	}
+
+	public function get($key) {
+
+	}
+
+	public function exists($key) {
+
+	}
 
 }

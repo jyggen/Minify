@@ -1,6 +1,8 @@
 <?php
 require_once '../bootstrap.php';
 
+$time = microtime(true);
+
 try {
 
 	$javascript = new Minify\Minify;
@@ -18,3 +20,5 @@ try {
 	die($e->getMessage()."\n");
 
 }
+
+print 'Executed in '.round(microtime(true)-$time, 5).' seconds using '.round(memory_get_peak_usage()/1000,2).'kB memory.'."\n";

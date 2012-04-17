@@ -25,23 +25,37 @@ class Minify
 
 	public function add($path) {
 
-		// If is remote file.
-		if(preg_match('/((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:\/~\+#]*[\w\-\@?^=%&amp;\/~\+#])?)/siU', $path) !== 0) {
+		if(is_array($path)) {
 
-			$cache = md5($path).'.cache';
+			foreach($path as $file) {
+
+				$this->files[] = new File($file);
+
+			}
 
 		} else {
 
-			// If file exists.
-			if (File::isValid($path) === true) {
+			$this->files[] = new File($path);
 
-				$this->files[] = new File($path);
+		}
 
-			} else {
+	}
 
-				throw new MinifyException('Invalid file: '.basename($path));
+	public function run() {}
 
-			}
+	public static function autoloader($class) {
+
+		$file = __DIR__.'/'.str_replace('_', DIRECTORY_SEPARATOR, substr($class, 7)).'.php';
+
+		if(file_exists($file) === true && is_readable($file) === true) {
+
+			include_once $file;
+			return true;
+
+		} else {
+
+			print $file;
+			throw new MinifyException('Invalid driver: '.$class);
 
 		}
 

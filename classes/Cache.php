@@ -12,24 +12,22 @@ namespace Minify;
 class Cache
 {
 
+	protected static $instance;
+
 	public static function load($driver) {
 
-		if (self::isValidDriver($driver)) {
-
-			$name = 'Cache_'.ucfirst($driver);
-			return new $name;
-
-		} else {
-
-			throw new MinifyException('Invalid cache driver: '.$driver);
-
-		}
+		$name = 'Minify\\Cache_'.ucfirst($driver);
+		self::$instance = new $name;
 
 	}
 
-	protected static function isValidDriver($name) {
+	public static function getInstance() {
 
-		return file_exists(__DIR__.'/cache/'.ucfirst($name).'.php');
+		if(self::$instance !== null) {
+
+			return self::$instance;
+
+		} else throw new MinifyException('No instance of Cache available.');
 
 	}
 
